@@ -1,0 +1,91 @@
+
+services:
+  app:
+    image: ${NEXTCLOUD_IMAGE}:${NEXTCLOUD_TAG}
+    container_name: nextcloud
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      POSTGRES_HOST: ${NEXTCLOUD_DB_HOST}
+      POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
+      POSTGRES_USER: ${NEXTCLOUD_DB_USER}
+      POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASS}
+      REDIS_HOST: ${NEXTCLOUD_REDIS_HOST}
+      NEXTCLOUD_TRUSTED_PROXIES: traefik
+      OVERWRITEPROTOCOL: https
+    networks:
+      - traefik
+      - default
+    volumes:
+      - nextcloud_app:/var/www/html
+      - ${HOMELAB_STORAGE_ROOT}/nextcloud/data:/var/www/html/data
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.services.nextcloud.loadbalancer.server.port=80
+
+      - traefik.http.routers.nc-open.rule=Host(`${NEXTCLOUD_HOST}`) && (PathPrefix(`/remote.php`) || PathPrefix(`/index.php/remote.php`) || PathPrefix(`/status.php`) || PathPrefix(`/index.php/status.php`) || PathPrefix(`/ocs/`) || PathPrefix(`/index.php/ocs/`) || PathPrefix(`/public.php`) || PathPrefix(`/s/`) || PathPrefix(`/.well-known/`))
+      - traefik.http.routers.nc-open.entrypoints=websecure
+      - traefik.http.routers.nc-open.tls.certresolver=cloudflare
+      - traefik.http.routers.nc-open.priority=100
+      - traefik.http.routers.nc-open.service=nextcloud
+      - traefik.http.routers.nc-open.middlewares=secure-headers@docker,nextcloud-uploads,nc-wellknown
+
+      - traefik.http.routers.nc-ui.rule=Host(`${NEXTCLOUD_HOST}`) && PathPrefix(`/`)
+      - traefik.http.routers.nc-ui.entrypoints=websecure
+      - traefik.http.routers.nc-ui.tls.certresolver=cloudflare
+      - traefik.http.routers.nc-ui.priority=10
+      - traefik.http.routers.nc-ui.service=nextcloud
+      - traefik.http.routers.nc-ui.middlewares=secure-headers@docker,nextcloud-uploads,nc-wellknown,nc-force-oidc,authentik@docker
+
+      - traefik.http.middlewares.nextcloud-uploads.buffering.maxRequestBodyBytes=10737418240
+      - traefik.http.middlewares.nextcloud-uploads.buffering.memRequestBodyBytes=10737418240
+
+      - traefik.http.middlewares.nc-wellknown.redirectregex.regex=^/.well-known/(?:carddav|caldav)$
+      - traefik.http.middlewares.nc-wellknown.redirectregex.replacement=/remote.php/dav
+      - traefik.http.middlewares.nc-wellknown.redirectregex.permanent=true
+
+      - traefik.http.middlewares.nc-force-oidc.redirectregex.regex=^/(?:index\\.php/)?login.*
+      - traefik.http.middlewares.nc-force-oidc.redirectregex.replacement=/apps/user_oidc/login/authentik
+      - traefik.http.middlewares.nc-force-oidc.redirectregex.permanent=true
+
+  db:
+    image: ${NEXTCLOUD_DB_IMAGE}:${NEXTCLOUD_DB_TAG}
+    container_name: nextcloud-db
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
+      POSTGRES_USER: ${NEXTCLOUD_DB_USER}
+      POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASS}
+    volumes:
+      - nextcloud_db:/var/lib/postgresql/data
+    networks:
+      - default
+
+  redis:
+    image: ${NEXTCLOUD_REDIS_IMAGE}:${NEXTCLOUD_REDIS_TAG}
+    container_name: nextcloud-redis
+    restart: unless-stopped
+    volumes:
+      - nextcloud_redis:/data
+    networks:
+      - default
+
+volumes:
+  nextcloud_app:
+  nextcloud_db:
+  nextcloud_redis:
+
+networks:
+  traefik:
+    external: true
+  default:
+    name: nextcloud_internal

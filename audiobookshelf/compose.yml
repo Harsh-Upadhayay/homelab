@@ -1,0 +1,35 @@
+services:
+  audiobookshelf:
+    image: ${AUDIOBOOKSHELF_IMAGE}:${AUDIOBOOKSHELF_TAG}
+    container_name: audiobookshelf
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      TZ: Asia/Tokyo
+    volumes:
+      - ${HOMELAB_STORAGE_ROOT}/audiobookshelf/audiobooks:/audiobooks
+      - ${HOMELAB_STORAGE_ROOT}/audiobookshelf/podcasts:/podcasts
+      - abs_config:/config
+      - abs_metadata:/metadata
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.audiobookshelf.rule=Host(`${AUDIOBOOKSHELF_HOST}`)
+      - traefik.http.routers.audiobookshelf.entrypoints=websecure
+      - traefik.http.routers.audiobookshelf.tls.certresolver=cloudflare
+      - traefik.http.services.audiobookshelf.loadbalancer.server.port=${AUDIOBOOKSHELF_PORT}
+      - traefik.http.routers.audiobookshelf.middlewares=secure-headers@docker
+
+volumes:
+  abs_config:
+  abs_metadata:
+
+networks:
+  traefik:
+    external: true

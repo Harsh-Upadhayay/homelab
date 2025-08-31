@@ -1,0 +1,64 @@
+services:
+  jenkins:
+    build:
+      context: .
+    container_name: jenkins
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      DOCKER_HOST: tcp://dind:2375
+      TZ: Asia/Tokyo
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    depends_on:
+      - dind
+    networks:
+      - traefik
+      - jenkins_net
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.services.jenkins.loadbalancer.server.port=8080
+      - traefik.http.routers.jenkins.rule=Host(`${JENKINS_HOST}`)
+      - traefik.http.routers.jenkins.entrypoints=websecure
+      - traefik.http.routers.jenkins.tls.certresolver=cloudflare
+      - traefik.http.routers.jenkins.middlewares=authentik@docker,secure-headers@docker
+
+  dind:
+    image: ${JENKINS_DIND_IMAGE}:${JENKINS_DIND_TAG}
+    container_name: dind
+    privileged: true
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command: ["dockerd", "--host=tcp://0.0.0.0:2375", "--tls=false"]
+    networks:
+      - jenkins_net
+
+  dind-cleaner:
+    image: ${JENKINS_DOCKERCLI_IMAGE}:${JENKINS_DOCKERCLI_TAG}
+    container_name: dind-cleaner
+    restart: unless-stopped
+    entrypoint: >
+      sh -c "while true; do
+        echo '[CLEANER] Running Docker cleanup...';
+        docker --host tcp://dind:2375 system prune -af --volumes;
+        sleep 21600;
+      done"
+    networks:
+      - jenkins_net
+    depends_on:
+      - dind
+
+volumes:
+  jenkins_home:
+
+networks:
+  traefik:
+    external: true
+  jenkins_net:

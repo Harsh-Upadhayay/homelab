@@ -1,0 +1,133 @@
+name: monitoring_stack
+
+services:
+  prometheus:
+    image: ${PROMETHEUS_IMAGE}:${PROMETHEUS_TAG}
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - traefik
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs: [/tmp]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prometheus.rule=Host(`${PROMETHEUS_HOST}`)
+      - traefik.http.routers.prometheus.entrypoints=websecure
+      - traefik.http.routers.prometheus.tls.certresolver=cloudflare
+      - traefik.http.services.prometheus.loadbalancer.server.port=9090
+      - traefik.http.routers.prometheus.middlewares=secure-headers@docker
+
+  grafana:
+    image: ${GRAFANA_IMAGE}:${GRAFANA_TAG}
+    container_name: grafana
+    user: "472:0"
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_HOST}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - traefik
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grafana.rule=Host(`${GRAFANA_HOST}`)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls.certresolver=cloudflare
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+      - traefik.http.routers.grafana.middlewares=secure-headers@docker
+
+  cadvisor:
+    image: ${CADVISOR_IMAGE}:${CADVISOR_TAG}
+    container_name: cadvisor
+    command: ["-port=8080"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: unless-stopped
+    networks:
+      - traefik
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - traefik.enable=false
+
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE}:${NODE_EXPORTER_TAG}
+    container_name: node-exporter
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --collector.processes
+      - --collector.filefd
+      - --collector.netstat
+      - --collector.textfile
+    volumes:
+      - /:/host:ro,rslave
+    restart: unless-stopped
+    networks:
+      - traefik
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - traefik.enable=false
+
+  dcgm-exporter:
+    image: ${DCGM_EXPORTER_IMAGE}:${DCGM_EXPORTER_TAG}
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      NVIDIA_DCGM_EXPORTER_LOG_LEVEL: info
+    expose: ["9400"]
+    networks:
+      - traefik
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+    labels:
+      - traefik.enable=false
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  traefik:
+    external: true

@@ -1,0 +1,41 @@
+# =======================
+# Homelab storage mounts
+# =======================
+
+# NOTE: Use UUIDs so device order changes (sdb/sdc) don't break mounts.
+# Run `blkid` or `lsblk -f` to get UUIDs if drives are replaced.
+
+# -----------------------
+# 1) Internal 1.5 TB HDD
+# -----------------------
+# ext4 data disk at /mnt/storage1
+# - noatime: fewer writes, better perf for metadata-heavy workloads
+# - fsck pass 2: check after root on boot
+UUID=d807ca3e-804b-4f99-865f-12ec3397932f  /mnt/storage1    ext4   defaults,noatime                                  0  2
+
+# -------------------------------------------
+# 2) MergerFS primary pool (from storage1)
+# -------------------------------------------
+# Presents /mnt/storage as a pool built from /mnt/storage1
+# - allow_other: let non-root users access (requires `user_allow_other` in /etc/fuse.conf)
+# - use_ino: preserves inode numbers (better for hardlinks / backup tools)
+# - category.create=epmfs: new files go to the existing path on the drive with most free space
+# - x-systemd.requires-mounts-for + after: make systemd wait for the source mount
+/mnt/storage1  /mnt/storage  fuse.mergerfs  defaults,allow_other,use_ino,category.create=epmfs,x-systemd.requires-mounts-for=/mnt/storage1,x-systemd.after=/mnt/storage1  0  0
+
+# ----------------------
+# 3) External 1 TB SSD
+# ----------------------
+# NTFS volume at /mnt/extstorage1 using the in-kernel ntfs3 driver
+# - nofail: system still boots if the USB/SSD is disconnected
+# - uid/gid: make files owned by your primary user (change if your UID/GID != 1000)
+# - device-timeout: don't stall boot if device is slow to appear
+UUID=F44A57704A572F1C  /mnt/extstorage1  ntfs3  defaults,nofail,noatime,uid=1000,gid=1000,umask=022,x-systemd.device-timeout=5s  0  0
+
+# -------------------------------------------
+# 4) MergerFS backup pool (from extstorage1)
+# -------------------------------------------
+# Presents /mnt/backup as a pool built from /mnt/extstorage1
+# - nofail: allow boot without the external SSD
+# - systemd deps: wait for /mnt/extstorage1
+/mnt/extstorage1  /mnt/backup  fuse.mergerfs  defaults,allow_other,use_ino,category.create=epmfs,nofail,x-systemd.requires-mounts-for=/mnt/extstorage1,x-systemd.after=/mnt/extstorage1  0  0

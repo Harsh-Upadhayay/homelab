@@ -1,0 +1,13 @@
+services:
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE}:${CLOUDFLARED_TAG}
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARED_CF_TUNNEL_TOKEN}
+    network_mode: host
+    security_opt:
+      - no-new-privileges:true

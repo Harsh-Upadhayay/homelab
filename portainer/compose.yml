@@ -1,0 +1,30 @@
+services:
+  portainer:
+    image: ${PORTAINER_IMAGE}:${PORTAINER_TAG}
+    container_name: portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - traefik
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.portainer.rule=Host(`${PORTAINER_HOST}`)
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - traefik.http.routers.portainer.tls.certresolver=cloudflare
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+      - traefik.http.routers.portainer.middlewares=secure-headers@docker
+
+volumes:
+  portainer_data:
+
+networks:
+  traefik:
+    external: true

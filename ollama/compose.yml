@@ -1,0 +1,33 @@
+services:
+  ollama:
+    image: ${OLLAMA_IMAGE}:${OLLAMA_TAG}
+    container_name: ollama
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.ollama.rule=Host(`${OLLAMA_HOST}`)
+      - traefik.http.routers.ollama.entrypoints=websecure
+      - traefik.http.routers.ollama.tls.certresolver=cloudflare
+      - traefik.http.services.ollama.loadbalancer.server.port=11434
+      - traefik.http.routers.ollama.middlewares=secure-headers@docker
+
+volumes:
+  ollama_data:
+
+networks:
+  traefik:
+    external: true
