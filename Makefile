@@ -1,12 +1,10 @@
-# why: convenience wrappers so you don't have to type --env-file twice or remember app paths
-
 OPS_ENV ?= ops/.env.local
 APPS := traefik monitoring authentik nextcloud audiobookshelf ollama jenkins portainer cloudflared
 
 .DEFAULT_GOAL := help
 
 define compose
-	@cd $(1) && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) $(2)
+	@cd $(1) && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env $(2)
 endef
 
 help: ## show commands
@@ -52,37 +50,37 @@ env-check: ## verify required env exists
 up-all: env-check ## start all
 	@for a in $(APPS); do \
 		echo "==> $$a"; \
-		cd $$a && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) up -d; \
+		cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env up -d; \
 	done
 
 down-all: ## stop all
 	@for a in $(APPS); do \
 		echo "==> $$a"; \
-		cd $$a && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) down; \
+		cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env down; \
 	done
 
 restart-all: env-check ## restart all
 	@for a in $(APPS); do \
 		echo "==> $$a"; \
-		cd $$a && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) restart; \
+		cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env restart; \
 	done
 
 pull-all: env-check ## pull images for all
 	@for a in $(APPS); do \
 		echo "==> $$a"; \
-		cd $$a && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) pull; \
+		cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env pull; \
 	done
 
 logs-all: env-check ## recent logs (non-follow)
 	@for a in $(APPS); do \
 		echo "==> $$a"; \
-		cd $$a && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) logs --tail=100 ; \
+		cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env logs --tail=100 ; \
 	done
 
 status: env-check ## ps for all
 	@for a in $(APPS); do \
 		echo "==> $$a"; \
-		cd $$a && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) ps; \
+		cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env ps; \
 	done
 
 # ---------- per app patterns ----------
@@ -113,4 +111,4 @@ debug-%: env-check ## foreground, abort on exit (ctrl-c to stop)
 
 exec-%: env-check ## run shell in a service: make exec-<app> SERVICE=name SHELL=/bin/sh
 	@test -n "$(SERVICE)" || (echo 'set SERVICE=name'; exit 2)
-	@cd $* && docker compose --env-file ./app.env --env-file ../$(OPS_ENV) exec -it $(SERVICE) $(if $(SHELL),$(SHELL),/bin/sh)
+	@cd $* && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env exec -it $(SERVICE) $(if $(SHELL),$(SHELL),/bin/sh)
