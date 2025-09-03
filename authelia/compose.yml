@@ -10,6 +10,7 @@ services:
     container_name: authelia
     restart: unless-stopped
     env_file:
+      - ../ops/.env.local
       - ./app.env
     networks: [traefik]
     volumes:
@@ -37,22 +38,22 @@ services:
       - traefik.http.services.authelia-abs.loadbalancer.server.port=9091
       - traefik.http.services.authelia-ollama.loadbalancer.server.port=9091
 
-      # ---------- auth.neovara.uk (serve whole host) ----------
-      - traefik.http.routers.authelia-host.rule=Host(`auth.neovara.uk`) && PathPrefix(`/`)
+      # ---------- AUTH_HOST (serve whole host) ----------
+      - traefik.http.routers.authelia-host.rule=Host(`${AUTH_HOST}`) && PathPrefix(`/`)
       - traefik.http.routers.authelia-host.entrypoints=websecure
       - traefik.http.routers.authelia-host.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-host.middlewares=authelia-root-redirect,authelia-add-slash,secure-headers@docker
       - traefik.http.routers.authelia-host.service=authelia
 
-      # ---------- audiobookshelf.neovara.uk under /authelia ----------
-      - traefik.http.routers.authelia-abs.rule=Host(`audiobookshelf.neovara.uk`) && PathPrefix(`/authelia`)
+      # ---------- AUDIOBOOKSHELF_HOST under /authelia ----------
+      - traefik.http.routers.authelia-abs.rule=Host(`${AUDIOBOOKSHELF_HOST}`) && PathPrefix(`/authelia`)
       - traefik.http.routers.authelia-abs.entrypoints=websecure
       - traefik.http.routers.authelia-abs.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-abs.middlewares=authelia-add-slash,secure-headers@docker
       - traefik.http.routers.authelia-abs.service=authelia-abs
 
-      # ---------- ollama.neovara.uk under /authelia ----------
-      - traefik.http.routers.authelia-ollama.rule=Host(`ollama.neovara.uk`) && PathPrefix(`/authelia`)
+      # ---------- OLLAMA_HOST under /authelia ----------
+      - traefik.http.routers.authelia-ollama.rule=Host(`${OLLAMA_HOST}`) && PathPrefix(`/authelia`)
       - traefik.http.routers.authelia-ollama.entrypoints=websecure
       - traefik.http.routers.authelia-ollama.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker
