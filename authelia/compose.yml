@@ -16,6 +16,8 @@ services:
     volumes:
       - ./configuration.yml:/config/configuration.yml:ro
       - ./users.yaml:/config/users.yaml:ro
+      - ./secrets:/secrets:ro
+
     security_opt:
       - no-new-privileges:true
     labels:
@@ -58,3 +60,10 @@ services:
       - traefik.http.routers.authelia-ollama.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker
       - traefik.http.routers.authelia-ollama.service=authelia-ollama
+
+      - traefik.http.routers.authelia-nextcloud.rule=Host(`nextcloud.neovara.uk`) && PathPrefix(`/authelia`)
+      - traefik.http.routers.authelia-nextcloud.entrypoints=websecure
+      - traefik.http.routers.authelia-nextcloud.tls.certresolver=cloudflare
+      - traefik.http.routers.authelia-nextcloud.middlewares=authelia-add-slash,secure-headers@docker
+      - traefik.http.routers.authelia-nextcloud.service=authelia-nextcloud
+      - traefik.http.services.authelia-nextcloud.loadbalancer.server.port=9091
