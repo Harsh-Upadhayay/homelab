@@ -58,17 +58,16 @@ access_control:
 
 identity_providers:
   oidc:
-    hmac_secret: '{{ fileContent "/secrets/oidc_hmac_secret" | trim }}'
+    hmac_secret: '{{ mustEnv "NC_AUTH_OIDC_HMAC_SECRET_B64" | b64dec }}'
     minimum_parameter_entropy: 16
     jwks:
       - key_id: "signing-rsa-2025-09"
         use: "sig"
         algorithm: "RS256"
         key: |
-          {{ fileContent "/secrets/oidc_signing_private.pem" | nindent 10 }}
+          {{ env "NC_AUTH_OIDC_SIGNING_PRIVATE_PEM_B64" | b64dec | nindent 10 }}
         certificate_chain: |
-          {{ fileContent "/secrets/oidc_signing_public.crt" | nindent 10 }}
-
+          {{ env "NC_AUTH_OIDC_SIGNING_PUBLIC_CRT_B64" | b64dec | nindent 10 }}
 
     lifespans:
       custom:
@@ -85,9 +84,9 @@ identity_providers:
         public: false
 
         redirect_uris:
-          - https://nextcloud.neovara.uk/apps/user_oidc/callback
-          - https://nextcloud.neovara.uk/index.php/apps/user_oidc/callback
-          - https://nextcloud.neovara.uk/apps/user_oidc/code
+          - https://{{mustEnv "NEXTCLOUD_HOST"}}/apps/user_oidc/callback
+          - https://{{mustEnv "NEXTCLOUD_HOST"}}/index.php/apps/user_oidc/callback
+          - https://{{mustEnv "NEXTCLOUD_HOST"}}/apps/user_oidc/code
 
         scopes: [openid, profile, email, groups]
         authorization_policy: one_factor

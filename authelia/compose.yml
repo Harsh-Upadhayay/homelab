@@ -1,4 +1,3 @@
-version: "3.9"
 
 networks:
   traefik:
@@ -16,7 +15,6 @@ services:
     volumes:
       - ./configuration.yml:/config/configuration.yml:ro
       - ./users.yaml:/config/users.yaml:ro
-      - ./secrets:/secrets:ro
 
     security_opt:
       - no-new-privileges:true
