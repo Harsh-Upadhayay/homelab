@@ -284,3 +284,9 @@ http:
 ```
 
 That’s all you need for each new service.
+
+
+# Access control: 
+ - 'admin' or 'nextcloud-*': user must be member of either of these groups to access OLLAMA_HOST
+      
+- 'admin', 'user', or 'guest':  user must be member of either of these groups to access AUDIOBOOKSHELF_HOST

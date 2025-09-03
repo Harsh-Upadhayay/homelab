@@ -46,15 +46,9 @@ notifier:
 access_control:
   default_policy: deny
   rules:
-    - domain: {{mustEnv "AUDIOBOOKSHELF_HOST"}}
-      policy: one_factor
-      subject: ["group:audiobookshelf-users", "group:platform-admins"]
     - domain: {{mustEnv "OLLAMA_HOST"}}
       policy: one_factor
-      subject: ["group:ollama-users", "group:platform-admins"]
-    - domain: {{mustEnv "NEXTCLOUD_HOST"}}
-      policy: one_factor   
-      subject: ["group:platform-admins", "group:nextcloud-users"]
+      subject: ["group:ollama-user", "group:admin"]
 
 identity_providers:
   oidc:
