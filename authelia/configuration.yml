@@ -94,3 +94,20 @@ identity_providers:
         require_pkce: true
         pkce_challenge_method: S256
         consent_mode: auto
+
+      - client_id: audiobookshelf
+        client_name: Audiobookshelf
+        client_secret: '{{ mustEnv "ABS_CLIENT_SECRET_DIGEST" | trim }}'
+        public: false
+        redirect_uris:
+          - https://{{ mustEnv "AUDIOBOOKSHELF_HOST" }}/auth/openid/callback
+          - https://{{ mustEnv "AUDIOBOOKSHELF_HOST" }}/auth/openid/mobile-redirect
+          - audiobookshelf://oauth
+        scopes: [openid, profile, email, groups]
+        authorization_policy: one_factor
+        token_endpoint_auth_method: client_secret_basic
+        require_pkce: true
+        pkce_challenge_method: S256
+        access_token_signed_response_alg: 'none'
+        userinfo_signed_response_alg: 'none'
+        lifespan: nc_short

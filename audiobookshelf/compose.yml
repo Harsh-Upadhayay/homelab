@@ -24,7 +24,7 @@ services:
       - traefik.http.routers.audiobookshelf.entrypoints=websecure
       - traefik.http.routers.audiobookshelf.tls.certresolver=cloudflare
       - traefik.http.services.audiobookshelf.loadbalancer.server.port=${AUDIOBOOKSHELF_PORT}
-      - traefik.http.routers.audiobookshelf.middlewares=authelia-fa-abs,secure-headers@docker
+      - traefik.http.routers.audiobookshelf.middlewares=secure-headers@docker
 
 volumes:
   abs_config:
