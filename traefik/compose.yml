@@ -4,6 +4,8 @@ services:
     container_name: traefik
     restart: unless-stopped
     command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
       - --api.dashboard=true
       - --api.insecure=false
       - --providers.docker=true
@@ -37,6 +39,7 @@ services:
       - letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_logs:/logs
+      - ./dynamic:/etc/traefik/dynamic:ro
     networks:
       - traefik
     security_opt:

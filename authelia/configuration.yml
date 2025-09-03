@@ -1,0 +1,52 @@
+log:
+  level: info
+
+server:
+  # Serve Authelia at /authelia (it will also answer on / per docs)
+  address: "tcp://0.0.0.0:9091/authelia"
+
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: "ForwardAuth"
+        authn_strategies:
+          - name: "CookieSession"
+
+session:
+  secret: "u8C1p3G1ee0nS9zJQ7kL2vUMp0f4aYyVY4t0gdE9nYw2iWk6Qw4zQh5jN8cB2mR1"
+  cookies:
+    - domain: "audiobookshelf.neovara.uk"
+      authelia_url: "https://audiobookshelf.neovara.uk/authelia"
+      default_redirection_url: "https://audiobookshelf.neovara.uk/"
+      name: "abs_sess"
+      same_site: "lax"
+    - domain: "ollama.neovara.uk"
+      authelia_url: "https://ollama.neovara.uk/authelia"
+      default_redirection_url: "https://ollama.neovara.uk/"
+      name: "ollama_sess"
+      same_site: "lax"
+
+authentication_backend:
+  file:
+    path: /config/users.yaml
+    password:
+      algorithm: argon2id
+
+storage:
+  encryption_key: "o7iTgk2Vt9mQy5Hs1DwZ3eN4pXr6aLb8Jc0Fv2Ru4Yx7Zq1Ks3Mn5Po8Tw2Gh6"
+  local:
+    path: /tmp/db.sqlite3
+
+notifier:
+  filesystem:
+    filename: /tmp/notification.log
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: "audiobookshelf.neovara.uk"
+      policy: one_factor
+      subject: ["group:audiobookshelf-users", "group:platform-admins"]
+    - domain: "ollama.neovara.uk"
+      policy: one_factor
+      subject: ["group:ollama-users", "group:platform-admins"]

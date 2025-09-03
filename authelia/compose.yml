@@ -1,0 +1,59 @@
+version: "3.9"
+
+networks:
+  traefik:
+    external: true
+
+services:
+  authelia:
+    image: authelia/authelia:latest
+    container_name: authelia
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    networks: [traefik]
+    volumes:
+      - ./configuration.yml:/config/configuration.yml:ro
+      - ./users.yaml:/config/users.yaml:ro
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+
+      # ---------- Middlewares ----------
+      # "/" → "/authelia/"
+      - traefik.http.middlewares.authelia-root-redirect.redirectregex.regex=^/$
+      - traefik.http.middlewares.authelia-root-redirect.redirectregex.replacement=/authelia/
+      - traefik.http.middlewares.authelia-root-redirect.redirectregex.permanent=true
+
+      # "/authelia" → "/authelia/"
+      - traefik.http.middlewares.authelia-add-slash.redirectregex.regex=^/authelia$
+      - traefik.http.middlewares.authelia-add-slash.redirectregex.replacement=/authelia/
+      - traefik.http.middlewares.authelia-add-slash.redirectregex.permanent=true
+
+      # ---------- Services (one per host) ----------
+      - traefik.http.services.authelia.loadbalancer.server.port=9091
+      - traefik.http.services.authelia-abs.loadbalancer.server.port=9091
+      - traefik.http.services.authelia-ollama.loadbalancer.server.port=9091
+
+      # ---------- auth.neovara.uk (serve whole host) ----------
+      - traefik.http.routers.authelia-host.rule=Host(`auth.neovara.uk`) && PathPrefix(`/`)
+      - traefik.http.routers.authelia-host.entrypoints=websecure
+      - traefik.http.routers.authelia-host.tls.certresolver=cloudflare
+      - traefik.http.routers.authelia-host.middlewares=authelia-root-redirect,authelia-add-slash,secure-headers@docker
+      - traefik.http.routers.authelia-host.service=authelia
+
+      # ---------- audiobookshelf.neovara.uk under /authelia ----------
+      - traefik.http.routers.authelia-abs.rule=Host(`audiobookshelf.neovara.uk`) && PathPrefix(`/authelia`)
+      - traefik.http.routers.authelia-abs.entrypoints=websecure
+      - traefik.http.routers.authelia-abs.tls.certresolver=cloudflare
+      - traefik.http.routers.authelia-abs.middlewares=authelia-add-slash,secure-headers@docker
+      - traefik.http.routers.authelia-abs.service=authelia-abs
+
+      # ---------- ollama.neovara.uk under /authelia ----------
+      - traefik.http.routers.authelia-ollama.rule=Host(`ollama.neovara.uk`) && PathPrefix(`/authelia`)
+      - traefik.http.routers.authelia-ollama.entrypoints=websecure
+      - traefik.http.routers.authelia-ollama.tls.certresolver=cloudflare
+      - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker
+      - traefik.http.routers.authelia-ollama.service=authelia-ollama

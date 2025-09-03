@@ -24,7 +24,7 @@ services:
       - traefik.http.routers.jenkins.rule=Host(`${JENKINS_HOST}`)
       - traefik.http.routers.jenkins.entrypoints=websecure
       - traefik.http.routers.jenkins.tls.certresolver=cloudflare
-      - traefik.http.routers.jenkins.middlewares=authentik@docker,secure-headers@docker
+      - traefik.http.routers.jenkins.middlewares=secure-headers@docker
 
   dind:
     image: ${JENKINS_DIND_IMAGE}:${JENKINS_DIND_TAG}
