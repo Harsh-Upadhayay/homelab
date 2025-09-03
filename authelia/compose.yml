@@ -58,13 +58,23 @@ services:
       - traefik.http.routers.authelia-ollama.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker
       - traefik.http.routers.authelia-ollama.service=authelia-ollama
-
-      - traefik.http.routers.authelia-nextcloud.rule=Host(`nextcloud.neovara.uk`) && PathPrefix(`/authelia`)
+      
+      # ---------- NEXTCLOUD_HOST under /authelia ----------
+      - traefik.http.routers.authelia-nextcloud.rule=Host(`${NEXTCLOUD_HOST}`) && PathPrefix(`/authelia`)
       - traefik.http.routers.authelia-nextcloud.entrypoints=websecure
       - traefik.http.routers.authelia-nextcloud.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-nextcloud.middlewares=authelia-add-slash,secure-headers@docker
       - traefik.http.routers.authelia-nextcloud.service=authelia-nextcloud
       - traefik.http.services.authelia-nextcloud.loadbalancer.server.port=9091
+
+            # ---------- GRAFANA_HOST under /authelia ----------
+      - traefik.http.routers.authelia-grafana.rule=Host(`${GRAFANA_HOST}`) && PathPrefix(`/authelia`)
+      - traefik.http.routers.authelia-grafana.entrypoints=websecure
+      - traefik.http.routers.authelia-grafana.tls.certresolver=cloudflare
+      - traefik.http.routers.authelia-grafana.middlewares=authelia-add-slash,secure-headers@docker
+      - traefik.http.routers.authelia-grafana.service=authelia-grafana
+      - traefik.http.services.authelia-grafana.loadbalancer.server.port=9091
+
 
 volumes:
   authelia_state:
