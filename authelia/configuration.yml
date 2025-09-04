@@ -34,10 +34,12 @@ session:
       same_site: "lax"
 
 authentication_backend:
-  file:
-    path: /config/users.yaml
-    password:
-      algorithm: argon2id
+  ldap:
+    implementation: lldap
+    address: ldap://lldap:3890
+    base_dn: dc=neovara,dc=uk
+    user: uid=authelia,ou=people,dc=neovara,dc=uk    # service/bind account you'll create in LLDAP
+    password: "ollallalaleloolaalalalalelo"
 
 storage:
   local:
