@@ -56,7 +56,7 @@ services:
       - traefik.http.routers.authelia-ollama.rule=Host(`${OLLAMA_HOST}`) && PathPrefix(`/authelia`)
       - traefik.http.routers.authelia-ollama.entrypoints=websecure
       - traefik.http.routers.authelia-ollama.tls.certresolver=cloudflare
-      - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker
+      - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker,errpages@docker
       - traefik.http.routers.authelia-ollama.service=authelia-ollama
       
       # ---------- NEXTCLOUD_HOST under /authelia ----------

@@ -27,7 +27,7 @@ services:
       - traefik.http.routers.ollama.entrypoints=websecure
       - traefik.http.routers.ollama.tls.certresolver=cloudflare
       - traefik.http.services.ollama.loadbalancer.server.port=11434
-      - traefik.http.routers.ollama.middlewares=authelia-fa-ollama,secure-headers@docker
+      - traefik.http.routers.ollama.middlewares=authelia-fa-ollama,secure-headers@docker,errpages@docker
 
 
 volumes:

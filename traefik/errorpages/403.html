@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Insufficient Permissions</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; text-align: center; }
+    .card { display: inline-block; padding: 2rem; border: 1px solid #ccc; border-radius: 8px; }
+    a.button {
+      display: inline-block; margin-top: 1rem; padding: 0.6rem 1.2rem;
+      border-radius: 6px; background: #005bbb; color: white; text-decoration: none;
+    }
+    a.button:hover { background: #004999; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>403 – Insufficient Permissions</h1>
+    <p>You’re signed in, but your account doesn’t have access to this application.</p>
+
+    <p>
+      <a id="logoutLink" class="button" href="#">Logout / Switch User</a>
+    </p>
+  </div>
+
+  <script>
+    (function() {
+      // e.g. "ollama.neovara.uk"
+      const host = window.location.host;
+      const proto = window.location.protocol;
+
+      // Authelia is at subpath /authelia/
+      const logoutUrl = `${proto}//${host}/authelia/logout?rd=${proto}//${host}/`;
+
+      document.getElementById('logoutLink').href = logoutUrl;
+    })();
+  </script>
+</body>
+</html>
