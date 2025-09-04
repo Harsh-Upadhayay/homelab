@@ -37,13 +37,13 @@ authentication_backend:
   ldap:
     implementation: lldap
     address: ldap://lldap:3890
-    base_dn: dc=neovara,dc=uk
-    user: uid=authelia,ou=people,dc=neovara,dc=uk    # service/bind account you'll create in LLDAP
-    password: "ollallalaleloolaalalalalelo"
+    base_dn: "{{ mustEnv `LLDAP_LDAP_BASE_DN` }}"
+    user: "{{ mustEnv `LLDAP_AUTHELIA_SERVICE_ACCOUNT` }}"    
+    password: "{{ mustEnv `LLDAP_AUTHELIA_SERVICE_ACCOUNT_PASSWORD` }}"
 
 storage:
   local:
-    path: /tmp/db.sqlite3  
+    path: /config/db.sqlite3  
 
 notifier:
   smtp:
@@ -60,7 +60,8 @@ identity_validation:
     jwt_secret: "{{ mustEnv `RESET_JWT_SECRET` }}"
 
 
-
+# Forward auth controles here, 
+# Convention appname-user, admin.
 access_control:
   default_policy: deny
   rules:

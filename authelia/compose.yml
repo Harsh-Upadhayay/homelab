@@ -5,7 +5,7 @@ networks:
 
 services:
   authelia:
-    image: authelia/authelia:latest
+    image: ${AUTHELIA_IMAGE}:${AUTHELIA_TAG}
     container_name: authelia
     restart: unless-stopped
     env_file:
@@ -75,16 +75,13 @@ services:
       - traefik.http.services.authelia-grafana.loadbalancer.server.port=9091
 
   lldap:
-    image: lldap/lldap:stable
+    image: ${LLDAP_IMAGE}:${LLDAP_HOST}
     container_name: lldap
     restart: unless-stopped
-    networks: [traefik]           
-    environment:
-      LLDAP_JWT_SECRET: "change-me-long-random"
-      LLDAP_KEY_SEED: "another-long-random"
-      LLDAP_LDAP_USER_PASS: "admin-ui-and-bind-password"
-      LLDAP_LDAP_BASE_DN: "dc=neovara,dc=uk"
-
+    networks: [traefik] 
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
     volumes:
       - lldap_data:/data
 

@@ -62,10 +62,6 @@ services:
       - "traefik.http.middlewares.secure-headers.headers.contentTypeNosniff=true"
       - "traefik.http.middlewares.secure-headers.headers.browserXssFilter=true"
       - "traefik.http.middlewares.secure-headers.headers.frameDeny=true"
-      
-      - "traefik.http.middlewares.authelia-fa-abs.forwardauth.address=https://${AUDIOBOOKSHELF_HOST}/authelia/api/authz/forward-auth"
-      - "traefik.http.middlewares.authelia-fa-abs.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.authelia-fa-abs.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Email,Remote-Name"
 
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.address=https://${OLLAMA_HOST}/authelia/api/authz/forward-auth"
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.trustForwardHeader=true"

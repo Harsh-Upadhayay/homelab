@@ -25,9 +25,7 @@ services:
       - nextcloud_app:/var/www/html
       - ${HOMELAB_STORAGE_ROOT}/nextcloud/data:/var/www/html/data
     labels:
-      # --- Traefik Labels ---
       - "traefik.enable=true"
-      # The domain for Nextcloud
       - "traefik.http.routers.nextcloud.rule=Host(`${NEXTCLOUD_HOST}`)"
       - "traefik.http.routers.nextcloud.entrypoints=websecure"
       - "traefik.http.routers.nextcloud.tls.certresolver=cloudflare"
@@ -37,11 +35,7 @@ services:
       - "traefik.http.middlewares.nextcloud-uploads.buffering.maxRequestBodyBytes=10737418240"
       - "traefik.http.middlewares.nextcloud-uploads.buffering.memRequestBodyBytes=10737418240"
 
-      # Apply the middlewares: your global secure-headers and our new upload middleware
-      # The @file tells Traefik the secure-headers middleware is defined in its own config file
       - "traefik.http.routers.nextcloud.middlewares=secure-headers@docker,nextcloud-uploads"
-
-      # Tell Traefik which port the Nextcloud container is listening on
       - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
   db:
     image: ${NEXTCLOUD_DB_IMAGE}:${NEXTCLOUD_DB_TAG}
