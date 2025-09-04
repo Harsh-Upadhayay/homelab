@@ -46,8 +46,19 @@ storage:
     path: /tmp/db.sqlite3  
 
 notifier:
-  filesystem:
-    filename: /tmp/notification.log
+  smtp:
+    address: "submission://{{ mustEnv `SMTP_HOST` }}:{{ mustEnv `SMTP_PORT_STARTTLS` }}"
+    username: "{{ mustEnv `SMTP_USERNAME` }}"  
+    password: "{{ mustEnv `SMTP_PASSWORD` }}"  
+    sender: "Authelia <authelia@{{ mustEnv `HOMELAB_DOMAIN` }}>"
+    subject: "[Authelia] {title}"
+    startup_check_address: "test@{{ mustEnv `HOMELAB_DOMAIN` }}"
+    timeout: "10s"
+
+identity_validation:
+  reset_password:
+    jwt_secret: "{{ mustEnv `RESET_JWT_SECRET` }}"
+
 
 
 access_control:

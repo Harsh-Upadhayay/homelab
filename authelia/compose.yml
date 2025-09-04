@@ -14,7 +14,6 @@ services:
     networks: [traefik]
     volumes:
       - ./configuration.yml:/config/configuration.yml:ro
-      - ./users.yaml:/config/users.yaml:ro
       - authelia_state:/config
     security_opt:
       - no-new-privileges:true
