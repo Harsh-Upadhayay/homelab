@@ -289,4 +289,12 @@ That’s all you need for each new service.
 # Access control: 
  - 'admin' or 'nextcloud-*': user must be member of either of these groups to access OLLAMA_HOST
       
-- 'admin', 'user', or 'guest':  user must be member of either of these groups to access AUDIOBOOKSHELF_HOST
+ - 'admin', 'user', or 'guest':  user must be member of either of these groups to access AUDIOBOOKSHELF_HOST
+
+ - 'admin', 'grafana-user' or 'grafana-editor' user must be member of either of these groups to access GRAFANA_HOST
+ 
+ - 'admin', 'nextcloud-*' user must be member of either of these groups to access NEXTCLOUD_HOST
+
+ - Immich does not support group based access control from OAuth, so user auto creation is turned off & user must first be created in immich's ui then in lldap to grant access.
+
+ 
