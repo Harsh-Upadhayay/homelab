@@ -74,6 +74,14 @@ services:
       - traefik.http.routers.authelia-grafana.service=authelia-grafana
       - traefik.http.services.authelia-grafana.loadbalancer.server.port=9091
 
+            # ---------- IMMICH_HOST under /authelia ----------
+      - traefik.http.routers.authelia-immich.rule=Host(`${IMMICH_HOST}`) && PathPrefix(`/authelia`)
+      - traefik.http.routers.authelia-immich.entrypoints=websecure
+      - traefik.http.routers.authelia-immich.tls.certresolver=cloudflare
+      - traefik.http.routers.authelia-immich.middlewares=authelia-add-slash,secure-headers@docker
+      - traefik.http.routers.authelia-immich.service=authelia-immich
+      - traefik.http.services.authelia-immich.loadbalancer.server.port=9091
+
   lldap:
     image: ${LLDAP_IMAGE}:${LLDAP_HOST}
     container_name: lldap
