@@ -66,6 +66,11 @@ services:
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.address=https://${OLLAMA_HOST}/authelia/api/authz/forward-auth"
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Email,Remote-Name"
+      
+      # Common FA.
+      - "traefik.http.middlewares.authelia-forwardauth.forwardauth.address=http://authelia:9091/api/authz/forward-auth"
+      - "traefik.http.middlewares.authelia-forwardauth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authelia-forwardauth.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Email,Remote-Name"
 
   errorpages:
     image: nginx:alpine

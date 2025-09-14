@@ -100,7 +100,7 @@ services:
       - "traefik.http.routers.prowlarr.rule=Host(`${PROWLARR_HOST}`)"
       - "traefik.http.routers.prowlarr.entrypoints=websecure"
       - "traefik.http.routers.prowlarr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.prowlarr.middlewares=secure-headers@docker"
+      - "traefik.http.routers.prowlarr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
 
   # -------------------------
@@ -128,7 +128,7 @@ services:
       - "traefik.http.routers.sonarr.rule=Host(`${SONARR_HOST}`)"
       - "traefik.http.routers.sonarr.entrypoints=websecure"
       - "traefik.http.routers.sonarr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.sonarr.middlewares=secure-headers@docker"
+      - "traefik.http.routers.sonarr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
 
   radarr:
@@ -153,33 +153,8 @@ services:
       - "traefik.http.routers.radarr.rule=Host(`${RADARR_HOST}`)"
       - "traefik.http.routers.radarr.entrypoints=websecure"
       - "traefik.http.routers.radarr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.radarr.middlewares=secure-headers@docker"
+      - "traefik.http.routers.radarr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.radarr.loadbalancer.server.port=7878"
-
-  lidarr:
-    image: ${LIDARR_IMAGE}:${LIDARR_TAG}
-    container_name: lidarr
-    restart: unless-stopped
-    env_file:
-      - ../ops/.env.local
-      - ./app.env
-    environment:
-      - LIDARR__AUTH__METHOD=External
-      - LIDARR__AUTH__REQUIRED=true
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    networks: [traefik, default]
-    volumes:
-      - lidarr_config:/config
-      - ${MEDIASERVER_DATA_ROOT}:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lidarr.rule=Host(`${LIDARR_HOST}`)"
-      - "traefik.http.routers.lidarr.entrypoints=websecure"
-      - "traefik.http.routers.lidarr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.lidarr.middlewares=secure-headers@docker"
-      - "traefik.http.services.lidarr.loadbalancer.server.port=8686"
 
   whisparr:
     image: ${WHISPARR_IMAGE}:${WHISPARR_TAG}
@@ -203,33 +178,8 @@ services:
       - "traefik.http.routers.whisparr.rule=Host(`${WHISPARR_HOST}`)"
       - "traefik.http.routers.whisparr.entrypoints=websecure"
       - "traefik.http.routers.whisparr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.whisparr.middlewares=secure-headers@docker"
+      - "traefik.http.routers.whisparr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.whisparr.loadbalancer.server.port=6969"
-
-  # -------------------------
-  # Bazarr (subtitles)
-  # -------------------------
-  bazarr:
-    image: ${BAZARR_IMAGE}:${BAZARR_TAG}
-    container_name: bazarr
-    restart: unless-stopped
-    env_file:
-      - ./app.env
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    networks: [traefik, default]
-    volumes:
-      - bazarr_config:/config
-      - ${MEDIASERVER_DATA_ROOT}:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.bazarr.rule=Host(`${BAZARR_HOST}`)"
-      - "traefik.http.routers.bazarr.entrypoints=websecure"
-      - "traefik.http.routers.bazarr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.bazarr.middlewares=secure-headers@docker"
-      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
 
   # -------------------------
   # Jellyseerr (requests)
@@ -305,7 +255,7 @@ services:
       - "traefik.http.routers.lazylibrarian.rule=Host(`${LAZYLIB_HOST}`)"
       - "traefik.http.routers.lazylibrarian.entrypoints=websecure"
       - "traefik.http.routers.lazylibrarian.tls.certresolver=cloudflare"
-      - "traefik.http.routers.lazylibrarian.middlewares=secure-headers@docker"
+      - "traefik.http.routers.lazylibrarian.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.lazylibrarian.loadbalancer.server.port=5299"
 
 volumes:

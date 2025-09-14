@@ -11,6 +11,7 @@ server:
           - name: "CookieSession"
 
 session:
+  remember_me_duration: 1M
   cookies:
     - domain: {{mustEnv "AUDIOBOOKSHELF_HOST"}}
       authelia_url: 'https://{{mustEnv "AUDIOBOOKSHELF_HOST"}}/authelia'
@@ -36,6 +37,12 @@ session:
       authelia_url: "https://{{ mustEnv `IMMICH_HOST` }}/authelia"
       default_redirection_url: "https://{{ mustEnv `IMMICH_HOST` }}/"
       name: "immich_sess"
+      same_site: "lax"
+      # SSO
+    - domain: "{{ mustEnv `HOMELAB_DOMAIN` }}"
+      authelia_url: "https://{{ mustEnv `AUTH_HOST` }}/authelia"
+      default_redirection_url: "https://{{ mustEnv `AUTH_HOST` }}/"
+      name: "sso_sess"
       same_site: "lax"
 
 authentication_backend:
@@ -77,6 +84,26 @@ access_control:
     - domain: {{mustEnv "OLLAMA_HOST"}}
       policy: one_factor
       subject: ["group:ollama-user", "group:admin"]
+      
+    - domain: "{{ mustEnv `PROWLARR_HOST` }}"
+      policy: two_factor
+      subject: ["group:arr-user", "group:admin"]
+
+    - domain: "{{ mustEnv `SONARR_HOST` }}"
+      policy: two_factor
+      subject: ["group:arr-user", "group:admin"]
+
+    - domain: "{{ mustEnv `RADARR_HOST` }}"
+      policy: two_factor
+      subject: ["group:arr-user", "group:admin"]
+
+    - domain: "{{ mustEnv `WHISPARR_HOST` }}"
+      policy: two_factor
+      subject: ["group:arr-user", "group:admin"]
+
+    - domain: "{{ mustEnv `LAZYLIB_HOST` }}"
+      policy: two_factor
+      subject: ["group:arr-user", "group:admin"]
 
 identity_providers:
   oidc:
