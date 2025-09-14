@@ -1,0 +1,329 @@
+name: mediaserver
+
+services:
+  # -------------------------
+  # VPN tunnel (OpenVPN via Gluetun) — qBittorrent shares its netns
+  # -------------------------
+  gluetun:
+    image: ${GLUETUN_IMAGE}:${GLUETUN_TAG}
+    container_name: gluetun
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    # No host ports. Traefik reaches qBittorrent through this container.
+    networks:
+      - traefik
+      - default
+    volumes:
+      - gluetun_state:/gluetun
+    labels:
+      # Expose qBittorrent UI *through Gluetun's* netns so nothing is LAN-exposed
+      - "traefik.enable=true"
+      - "traefik.http.routers.qbit.rule=Host(`${QBIT_HOST}`)"
+      - "traefik.http.routers.qbit.entrypoints=websecure"
+      - "traefik.http.routers.qbit.tls.certresolver=cloudflare"
+      - "traefik.http.routers.qbit.middlewares=secure-headers@docker"
+      - "traefik.http.services.qbit.loadbalancer.server.port=${QBIT_WEBUI_PORT}"
+
+  # -------------------------
+  # qBittorrent (through VPN)
+  # -------------------------
+  qbittorrent:
+    image: ${QBIT_IMAGE}:${QBIT_TAG}
+    container_name: qbittorrent
+    restart: unless-stopped
+    # share Gluetun's network namespace; no extra networks or ports
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      - WEBUI_PORT=${QBIT_WEBUI_PORT}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - qbit_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    # No labels here (Traefik is on gluetun)
+
+  # -------------------------
+  # FlareSolverr (for CF/JS-protected indexers)
+  # -------------------------
+  flaresolverr:
+    image: ${FLARESOLVERR_IMAGE}:${FLARESOLVERR_TAG}
+    container_name: flaresolverr
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ}
+    networks:
+      - default
+    # Internal-only; Prowlarr will call http://flaresolverr:8191
+
+  # -------------------------
+  # Prowlarr (indexer orchestrator)
+  # -------------------------
+  prowlarr:
+    image: ${PROWLARR_IMAGE}:${PROWLARR_TAG}
+    container_name: prowlarr
+    restart: unless-stopped
+    depends_on:
+      - flaresolverr
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      # Disable app auth; you’re protecting at Traefik/Authelia layer
+      - PROWLARR__AUTH__METHOD=External
+      - PROWLARR__AUTH__REQUIRED=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks:
+      - traefik
+      - default
+    volumes:
+      - prowlarr_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prowlarr.rule=Host(`${PROWLARR_HOST}`)"
+      - "traefik.http.routers.prowlarr.entrypoints=websecure"
+      - "traefik.http.routers.prowlarr.tls.certresolver=cloudflare"
+      - "traefik.http.routers.prowlarr.middlewares=secure-headers@docker"
+      - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+
+  # -------------------------
+  # Sonarr / Radarr / Lidarr / Whisparr
+  # -------------------------
+  sonarr:
+    image: ${SONARR_IMAGE}:${SONARR_TAG}
+    container_name: sonarr
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      - SONARR__AUTH__METHOD=External
+      - SONARR__AUTH__REQUIRED=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks: [traefik, default]
+    volumes:
+      - sonarr_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.rule=Host(`${SONARR_HOST}`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls.certresolver=cloudflare"
+      - "traefik.http.routers.sonarr.middlewares=secure-headers@docker"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+
+  radarr:
+    image: ${RADARR_IMAGE}:${RADARR_TAG}
+    container_name: radarr
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      - RADARR__AUTH__METHOD=External
+      - RADARR__AUTH__REQUIRED=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks: [traefik, default]
+    volumes:
+      - radarr_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.rule=Host(`${RADARR_HOST}`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      - "traefik.http.routers.radarr.tls.certresolver=cloudflare"
+      - "traefik.http.routers.radarr.middlewares=secure-headers@docker"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+
+  lidarr:
+    image: ${LIDARR_IMAGE}:${LIDARR_TAG}
+    container_name: lidarr
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      - LIDARR__AUTH__METHOD=External
+      - LIDARR__AUTH__REQUIRED=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks: [traefik, default]
+    volumes:
+      - lidarr_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lidarr.rule=Host(`${LIDARR_HOST}`)"
+      - "traefik.http.routers.lidarr.entrypoints=websecure"
+      - "traefik.http.routers.lidarr.tls.certresolver=cloudflare"
+      - "traefik.http.routers.lidarr.middlewares=secure-headers@docker"
+      - "traefik.http.services.lidarr.loadbalancer.server.port=8686"
+
+  whisparr:
+    image: ${WHISPARR_IMAGE}:${WHISPARR_TAG}
+    container_name: whisparr
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      - WHISPARR__AUTH__METHOD=External
+      - WHISPARR__AUTH__REQUIRED=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks: [traefik, default]
+    volumes:
+      - whisparr_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whisparr.rule=Host(`${WHISPARR_HOST}`)"
+      - "traefik.http.routers.whisparr.entrypoints=websecure"
+      - "traefik.http.routers.whisparr.tls.certresolver=cloudflare"
+      - "traefik.http.routers.whisparr.middlewares=secure-headers@docker"
+      - "traefik.http.services.whisparr.loadbalancer.server.port=6969"
+
+  # -------------------------
+  # Bazarr (subtitles)
+  # -------------------------
+  bazarr:
+    image: ${BAZARR_IMAGE}:${BAZARR_TAG}
+    container_name: bazarr
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks: [traefik, default]
+    volumes:
+      - bazarr_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bazarr.rule=Host(`${BAZARR_HOST}`)"
+      - "traefik.http.routers.bazarr.entrypoints=websecure"
+      - "traefik.http.routers.bazarr.tls.certresolver=cloudflare"
+      - "traefik.http.routers.bazarr.middlewares=secure-headers@docker"
+      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
+
+  # -------------------------
+  # Jellyseerr (requests)
+  # -------------------------
+  jellyseerr:
+    image: ${JELLYSEERR_IMAGE}:${JELLYSEERR_TAG}
+    container_name: jellyseerr
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ}
+    networks: [traefik, default]
+    volumes:
+      - jellyseerr_config:/app/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyseerr.rule=Host(`${JELLYSEERR_HOST}`)"
+      - "traefik.http.routers.jellyseerr.entrypoints=websecure"
+      - "traefik.http.routers.jellyseerr.tls.certresolver=cloudflare"
+      - "traefik.http.routers.jellyseerr.middlewares=secure-headers@docker"
+      - "traefik.http.services.jellyseerr.loadbalancer.server.port=5055"
+
+  # -------------------------
+  # Jellyfin (media server)
+  # -------------------------
+  jellyfin:
+    image: ${JELLYFIN_IMAGE}:${JELLYFIN_TAG}
+    container_name: jellyfin
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      # Optionally publish server URL to help some clients:
+      # - JELLYFIN_PublishedServerUrl=https://${JELLYFIN_HOST}
+    networks: [traefik, default]
+    devices: []  # add GPU if you want HW transcode later
+    volumes:
+      - jellyfin_config:/config
+      - jellyfin_cache:/cache
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.rule=Host(`${JELLYFIN_HOST}`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      - "traefik.http.routers.jellyfin.tls.certresolver=cloudflare"
+      - "traefik.http.routers.jellyfin.middlewares=secure-headers@docker"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+
+  # -------------------------
+  # LazyLibrarian (ebooks/audiobooks metadata)
+  # -------------------------
+  lazylibrarian:
+    image: ${LAZYLIB_IMAGE}:${LAZYLIB_TAG}
+    container_name: lazylibrarian
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks: [traefik, default]
+    volumes:
+      - lazylibrarian_config:/config
+      - ${MEDIASERVER_DATA_ROOT}:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lazylibrarian.rule=Host(`${LAZYLIB_HOST}`)"
+      - "traefik.http.routers.lazylibrarian.entrypoints=websecure"
+      - "traefik.http.routers.lazylibrarian.tls.certresolver=cloudflare"
+      - "traefik.http.routers.lazylibrarian.middlewares=secure-headers@docker"
+      - "traefik.http.services.lazylibrarian.loadbalancer.server.port=5299"
+
+volumes:
+  gluetun_state:
+  qbit_config:
+  prowlarr_config:
+  sonarr_config:
+  radarr_config:
+  lidarr_config:
+  whisparr_config:
+  bazarr_config:
+  jellyfin_config:
+  jellyfin_cache:
+  jellyseerr_config:
+  lazylibrarian_config:
+
+networks:
+  traefik:
+    external: true
+  default:
+    name: mediaserver_internal
