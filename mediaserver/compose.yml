@@ -156,31 +156,6 @@ services:
       - "traefik.http.routers.radarr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.radarr.loadbalancer.server.port=7878"
 
-  whisparr:
-    image: ${WHISPARR_IMAGE}:${WHISPARR_TAG}
-    container_name: whisparr
-    restart: unless-stopped
-    env_file:
-      - ../ops/.env.local
-      - ./app.env
-    environment:
-      - WHISPARR__AUTH__METHOD=External
-      - WHISPARR__AUTH__REQUIRED=true
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    networks: [traefik, default]
-    volumes:
-      - whisparr_config:/config
-      - ${MEDIASERVER_DATA_ROOT}:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whisparr.rule=Host(`${WHISPARR_HOST}`)"
-      - "traefik.http.routers.whisparr.entrypoints=websecure"
-      - "traefik.http.routers.whisparr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.whisparr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
-      - "traefik.http.services.whisparr.loadbalancer.server.port=6969"
-
   # -------------------------
   # Jellyseerr (requests)
   # -------------------------
@@ -219,6 +194,14 @@ services:
       - TZ=${TZ}
       # Optionally publish server URL to help some clients:
       # - JELLYFIN_PublishedServerUrl=https://${JELLYFIN_HOST}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1        # or 'all'
+              capabilities: [gpu]
+
     networks: [traefik, default]
     devices: []  # add GPU if you want HW transcode later
     volumes:
@@ -233,44 +216,15 @@ services:
       - "traefik.http.routers.jellyfin.middlewares=secure-headers@docker"
       - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
 
-  # -------------------------
-  # LazyLibrarian (ebooks/audiobooks metadata)
-  # -------------------------
-  lazylibrarian:
-    image: ${LAZYLIB_IMAGE}:${LAZYLIB_TAG}
-    container_name: lazylibrarian
-    restart: unless-stopped
-    env_file:
-      - ./app.env
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    networks: [traefik, default]
-    volumes:
-      - lazylibrarian_config:/config
-      - ${MEDIASERVER_DATA_ROOT}:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lazylibrarian.rule=Host(`${LAZYLIB_HOST}`)"
-      - "traefik.http.routers.lazylibrarian.entrypoints=websecure"
-      - "traefik.http.routers.lazylibrarian.tls.certresolver=cloudflare"
-      - "traefik.http.routers.lazylibrarian.middlewares=authelia-forwardauth@docker,secure-headers@docker"
-      - "traefik.http.services.lazylibrarian.loadbalancer.server.port=5299"
-
 volumes:
   gluetun_state:
   qbit_config:
   prowlarr_config:
   sonarr_config:
   radarr_config:
-  lidarr_config:
-  whisparr_config:
-  bazarr_config:
   jellyfin_config:
   jellyfin_cache:
   jellyseerr_config:
-  lazylibrarian_config:
 
 networks:
   traefik:
