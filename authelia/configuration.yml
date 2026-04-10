@@ -97,13 +97,13 @@ access_control:
       policy: two_factor
       subject: ["group:arr-user", "group:admin"]
 
-    - domain: "{{ mustEnv `WHISPARR_HOST` }}"
+    - domain: "{{ mustEnv `TDARR_HOST` }}"
       policy: two_factor
       subject: ["group:arr-user", "group:admin"]
-
-    - domain: "{{ mustEnv `LAZYLIB_HOST` }}"
+    
+    - domain: {{mustEnv "AUDIOBOOKSHELF_HOST"}}
       policy: two_factor
-      subject: ["group:arr-user", "group:admin"]
+      subject: ["group:abs-user", "group:admin"]
 
 identity_providers:
   oidc:
