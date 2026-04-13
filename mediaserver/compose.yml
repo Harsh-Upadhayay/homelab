@@ -1,9 +1,6 @@
 name: mediaserver
 
 services:
-  # -------------------------
-  # VPN tunnel (OpenVPN via Gluetun) — qBittorrent shares its netns
-  # -------------------------
   gluetun:
     image: ${GLUETUN_IMAGE}:${GLUETUN_TAG}
     container_name: gluetun
@@ -15,14 +12,13 @@ services:
       - NET_ADMIN
     devices:
       - /dev/net/tun
-    # No host ports. Traefik reaches qBittorrent through this container.
     networks:
       - traefik
       - default
     volumes:
-      - gluetun_state:/gluetun
+      # /gluetun preserves VPN selection and runtime state across rebuilds.
+      - ${MEDIASERVER_STATE_ROOT}/gluetun:/gluetun
     labels:
-      # Expose qBittorrent UI *through Gluetun's* netns so nothing is LAN-exposed
       - "traefik.enable=true"
       - "traefik.http.routers.qbit.rule=Host(`${QBIT_HOST}`)"
       - "traefik.http.routers.qbit.entrypoints=websecure"
@@ -30,14 +26,10 @@ services:
       - "traefik.http.routers.qbit.middlewares=secure-headers@docker"
       - "traefik.http.services.qbit.loadbalancer.server.port=${QBIT_WEBUI_PORT}"
 
-  # -------------------------
-  # qBittorrent (through VPN)
-  # -------------------------
   qbittorrent:
     image: ${QBIT_IMAGE}:${QBIT_TAG}
     container_name: qbittorrent
     restart: unless-stopped
-    # share Gluetun's network namespace; no extra networks or ports
     network_mode: "service:gluetun"
     depends_on:
       - gluetun
@@ -50,13 +42,10 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - qbit_config:/config
+      # /config is qBittorrent state; /data is the shared media and downloads tree.
+      - ${MEDIASERVER_STATE_ROOT}/qbittorrent/config:/config
       - ${MEDIASERVER_DATA_ROOT}:/data
-    # No labels here (Traefik is on gluetun)
 
-  # -------------------------
-  # FlareSolverr (for CF/JS-protected indexers)
-  # -------------------------
   flaresolverr:
     image: ${FLARESOLVERR_IMAGE}:${FLARESOLVERR_TAG}
     container_name: flaresolverr
@@ -68,11 +57,7 @@ services:
       - TZ=${TZ}
     networks:
       - default
-    # Internal-only; Prowlarr will call http://flaresolverr:8191
 
-  # -------------------------
-  # Prowlarr (indexer orchestrator)
-  # -------------------------
   prowlarr:
     image: ${PROWLARR_IMAGE}:${PROWLARR_TAG}
     container_name: prowlarr
@@ -83,7 +68,6 @@ services:
       - ../ops/.env.local
       - ./app.env
     environment:
-      # Disable app auth; you’re protecting at Traefik/Authelia layer
       - PROWLARR__AUTH__METHOD=External
       - PROWLARR__AUTH__REQUIRED=true
       - PUID=${PUID}
@@ -93,7 +77,8 @@ services:
       - traefik
       - default
     volumes:
-      - prowlarr_config:/config
+      # /config is Prowlarr state.
+      - ${MEDIASERVER_STATE_ROOT}/prowlarr/config:/config
       - ${MEDIASERVER_DATA_ROOT}:/data
     labels:
       - "traefik.enable=true"
@@ -103,9 +88,6 @@ services:
       - "traefik.http.routers.prowlarr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
 
-  # -------------------------
-  # Sonarr / Radarr / Lidarr / Whisparr
-  # -------------------------
   sonarr:
     image: ${SONARR_IMAGE}:${SONARR_TAG}
     container_name: sonarr
@@ -121,7 +103,8 @@ services:
       - TZ=${TZ}
     networks: [traefik, default]
     volumes:
-      - sonarr_config:/config
+      # /config is Sonarr state.
+      - ${MEDIASERVER_STATE_ROOT}/sonarr/config:/config
       - ${MEDIASERVER_DATA_ROOT}:/data
     labels:
       - "traefik.enable=true"
@@ -146,7 +129,8 @@ services:
       - TZ=${TZ}
     networks: [traefik, default]
     volumes:
-      - radarr_config:/config
+      # /config is Radarr state.
+      - ${MEDIASERVER_STATE_ROOT}/radarr/config:/config
       - ${MEDIASERVER_DATA_ROOT}:/data
     labels:
       - "traefik.enable=true"
@@ -156,9 +140,6 @@ services:
       - "traefik.http.routers.radarr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
       - "traefik.http.services.radarr.loadbalancer.server.port=7878"
 
-  # -------------------------
-  # Jellyseerr (requests)
-  # -------------------------
   jellyseerr:
     image: ${JELLYSEERR_IMAGE}:${JELLYSEERR_TAG}
     container_name: jellyseerr
@@ -170,7 +151,8 @@ services:
       - TZ=${TZ}
     networks: [traefik, default]
     volumes:
-      - jellyseerr_config:/app/config
+      # /app/config is the Jellyseerr state directory.
+      - ${MEDIASERVER_STATE_ROOT}/jellyseerr/config:/app/config
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jellyseerr.rule=Host(`${JELLYSEERR_HOST}`)"
@@ -179,9 +161,6 @@ services:
       - "traefik.http.routers.jellyseerr.middlewares=secure-headers@docker"
       - "traefik.http.services.jellyseerr.loadbalancer.server.port=5055"
 
-  # -------------------------
-  # Jellyfin (media server)
-  # -------------------------
   jellyfin:
     image: ${JELLYFIN_IMAGE}:${JELLYFIN_TAG}
     container_name: jellyfin
@@ -192,20 +171,18 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-      # Optionally publish server URL to help some clients:
-      # - JELLYFIN_PublishedServerUrl=https://${JELLYFIN_HOST}
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1        # or 'all'
+              count: 1
               capabilities: [gpu]
-
     networks: [traefik, default]
-    devices: []  # add GPU if you want HW transcode later
+    devices: []
     volumes:
-      - jellyfin_config:/config
+      # /config is Jellyfin server state; /cache stays disposable on root.
+      - ${MEDIASERVER_STATE_ROOT}/jellyfin/config:/config
       - jellyfin_cache:/cache
       - ${MEDIASERVER_DATA_ROOT}:/data
     labels:
@@ -217,14 +194,7 @@ services:
       - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
 
 volumes:
-  gluetun_state:
-  qbit_config:
-  prowlarr_config:
-  sonarr_config:
-  radarr_config:
-  jellyfin_config:
   jellyfin_cache:
-  jellyseerr_config:
 
 networks:
   traefik:

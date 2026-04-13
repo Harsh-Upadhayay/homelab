@@ -1,4 +1,3 @@
-
 services:
   app:
     image: ${NEXTCLOUD_IMAGE}:${NEXTCLOUD_TAG}
@@ -22,21 +21,20 @@ services:
       - traefik
       - default
     volumes:
-      - nextcloud_app:/var/www/html
+      # The official image persists installed app code, config, and custom apps in /var/www/html.
+      - ${NEXTCLOUD_APP_LOCATION}:/var/www/html
+      # User files stay separate so the largest growth path is easy to back up independently.
       - ${HOMELAB_STORAGE_ROOT}/nextcloud/data:/var/www/html/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.nextcloud.rule=Host(`${NEXTCLOUD_HOST}`)"
       - "traefik.http.routers.nextcloud.entrypoints=websecure"
       - "traefik.http.routers.nextcloud.tls.certresolver=cloudflare"
-
-      # This middleware is crucial for allowing large file uploads.
-      # By default, Traefik might time out or reject them. This sets a 10GB limit.
       - "traefik.http.middlewares.nextcloud-uploads.buffering.maxRequestBodyBytes=10737418240"
       - "traefik.http.middlewares.nextcloud-uploads.buffering.memRequestBodyBytes=10737418240"
-
       - "traefik.http.routers.nextcloud.middlewares=secure-headers@docker,nextcloud-uploads"
       - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
+
   db:
     image: ${NEXTCLOUD_DB_IMAGE}:${NEXTCLOUD_DB_TAG}
     container_name: nextcloud-db
@@ -49,7 +47,8 @@ services:
       POSTGRES_USER: ${NEXTCLOUD_DB_USER}
       POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASS}
     volumes:
-      - nextcloud_db:/var/lib/postgresql/data
+      # Postgres cluster data is authoritative state; keep it on /storage.
+      - ${NEXTCLOUD_DB_DATA_LOCATION}:/var/lib/postgresql/data
     networks:
       - default
 
@@ -63,8 +62,6 @@ services:
       - default
 
 volumes:
-  nextcloud_app:
-  nextcloud_db:
   nextcloud_redis:
 
 networks:

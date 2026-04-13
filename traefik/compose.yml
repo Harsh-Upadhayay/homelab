@@ -27,7 +27,6 @@ services:
       - --entrypoints.websecure.transport.respondingTimeouts.readTimeout=0s
       - --entrypoints.websecure.transport.respondingTimeouts.writeTimeout=0s
       - --entrypoints.websecure.transport.respondingTimeouts.idleTimeout=0s
-      
     ports:
       - "80:80"
       - "443:443"
@@ -39,7 +38,8 @@ services:
       CLOUDFLARE_DNS_API_TOKEN: ${HOMELAB_CLOUDFLARE_DNS_API_TOKEN}
       DOCKER_API_VERSION: 1.54
     volumes:
-      - letsencrypt:/letsencrypt
+      # ACME account and cert state lives under /letsencrypt/acme.json.
+      - ${TRAEFIK_ACME_LOCATION}:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_logs:/logs
     networks:
@@ -53,13 +53,10 @@ services:
       - traefik.http.routers.traefik.entrypoints=websecure
       - traefik.http.routers.traefik.tls.certresolver=cloudflare
       - traefik.http.routers.traefik.service=api@internal
-
       - traefik.http.middlewares.errpages.errors.status=403,404
       - traefik.http.middlewares.errpages.errors.service=errorpages
       - traefik.http.middlewares.errpages.errors.query=/{status}.html
-
       - traefik.http.routers.traefik.middlewares=secure-headers@docker
-      
       - "traefik.http.middlewares.secure-headers.headers.sslRedirect=true"
       - "traefik.http.middlewares.secure-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.secure-headers.headers.stsIncludeSubdomains=true"
@@ -67,12 +64,9 @@ services:
       - "traefik.http.middlewares.secure-headers.headers.contentTypeNosniff=true"
       - "traefik.http.middlewares.secure-headers.headers.browserXssFilter=true"
       - "traefik.http.middlewares.secure-headers.headers.frameDeny=true"
-
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.address=https://${OLLAMA_HOST}/authelia/api/authz/forward-auth"
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.authelia-fa-ollama.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Email,Remote-Name"
-      
-      # Common FA.
       - "traefik.http.middlewares.authelia-forwardauth.forwardauth.address=http://authelia:9091/api/authz/forward-auth"
       - "traefik.http.middlewares.authelia-forwardauth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.authelia-forwardauth.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Email,Remote-Name"
@@ -91,11 +85,9 @@ services:
       - traefik.http.routers.errorpages.priority=1
       - traefik.http.services.errorpages.loadbalancer.server.port=80
 
-
 networks:
   traefik:
     external: true
 
 volumes:
-  letsencrypt:
   traefik_logs:

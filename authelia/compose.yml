@@ -1,4 +1,3 @@
-
 networks:
   traefik:
     external: true
@@ -13,8 +12,10 @@ services:
       - ./app.env
     networks: [traefik]
     volumes:
+      # Keep the declarative configuration file in Git.
       - ./configuration.yml:/config/configuration.yml:ro
-      - authelia_state:/config
+      # /config holds the Authelia local DB and generated runtime state.
+      - ${AUTHELIA_STATE_LOCATION}:/config
     security_opt:
       - no-new-privileges:true
     labels:
@@ -22,12 +23,12 @@ services:
       - traefik.docker.network=traefik
 
       # ---------- Middlewares ----------
-      # "/" → "/authelia/"
+      # "/" -> "/authelia/"
       - traefik.http.middlewares.authelia-root-redirect.redirectregex.regex=^/$
       - traefik.http.middlewares.authelia-root-redirect.redirectregex.replacement=/authelia/
       - traefik.http.middlewares.authelia-root-redirect.redirectregex.permanent=true
 
-      # "/authelia" → "/authelia/"
+      # "/authelia" -> "/authelia/"
       - traefik.http.middlewares.authelia-add-slash.redirectregex.regex=^/authelia$
       - traefik.http.middlewares.authelia-add-slash.redirectregex.replacement=/authelia/
       - traefik.http.middlewares.authelia-add-slash.redirectregex.permanent=true
@@ -57,7 +58,7 @@ services:
       - traefik.http.routers.authelia-ollama.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker,errpages@docker
       - traefik.http.routers.authelia-ollama.service=authelia-ollama
-      
+
       # ---------- NEXTCLOUD_HOST under /authelia ----------
       - traefik.http.routers.authelia-nextcloud.rule=Host(`${NEXTCLOUD_HOST}`) && PathPrefix(`/authelia`)
       - traefik.http.routers.authelia-nextcloud.entrypoints=websecure
@@ -66,7 +67,7 @@ services:
       - traefik.http.routers.authelia-nextcloud.service=authelia-nextcloud
       - traefik.http.services.authelia-nextcloud.loadbalancer.server.port=9091
 
-            # ---------- GRAFANA_HOST under /authelia ----------
+      # ---------- GRAFANA_HOST under /authelia ----------
       - traefik.http.routers.authelia-grafana.rule=Host(`${GRAFANA_HOST}`) && PathPrefix(`/authelia`)
       - traefik.http.routers.authelia-grafana.entrypoints=websecure
       - traefik.http.routers.authelia-grafana.tls.certresolver=cloudflare
@@ -74,7 +75,7 @@ services:
       - traefik.http.routers.authelia-grafana.service=authelia-grafana
       - traefik.http.services.authelia-grafana.loadbalancer.server.port=9091
 
-            # ---------- IMMICH_HOST under /authelia ----------
+      # ---------- IMMICH_HOST under /authelia ----------
       - traefik.http.routers.authelia-immich.rule=Host(`${IMMICH_HOST}`) && PathPrefix(`/authelia`)
       - traefik.http.routers.authelia-immich.entrypoints=websecure
       - traefik.http.routers.authelia-immich.tls.certresolver=cloudflare
@@ -83,25 +84,20 @@ services:
       - traefik.http.services.authelia-immich.loadbalancer.server.port=9091
 
   lldap:
-    image: ${LLDAP_IMAGE}:${LLDAP_HOST}
+    image: ${LLDAP_IMAGE}:${LLDAP_TAG}
     container_name: lldap
     restart: unless-stopped
-    networks: [traefik] 
+    networks: [traefik]
     env_file:
       - ../ops/.env.local
       - ./app.env
     volumes:
-      - lldap_data:/data
-
+      # /data is the LLDAP directory source of truth.
+      - ${LLDAP_DATA_LOCATION}:/data
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik
-
       - traefik.http.routers.lldap-ui.rule=Host(`${DIRECTORY_HOST}`)
       - traefik.http.routers.lldap-ui.entrypoints=websecure
       - traefik.http.routers.lldap-ui.tls.certresolver=cloudflare
       - traefik.http.services.lldap-ui.loadbalancer.server.port=17170
-
-volumes:
-  lldap_data:
-  authelia_state:

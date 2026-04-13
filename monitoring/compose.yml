@@ -25,11 +25,6 @@ services:
     tmpfs: [/tmp]
     labels:
       - traefik.enable=false
-      # - traefik.http.routers.prometheus.rule=Host(`${PROMETHEUS_HOST}`)
-      # - traefik.http.routers.prometheus.entrypoints=websecure
-      # - traefik.http.routers.prometheus.tls.certresolver=cloudflare
-      # - traefik.http.services.prometheus.loadbalancer.server.port=9090
-      # - traefik.http.routers.prometheus.middlewares=secure-headers@docker
 
   grafana:
     image: ${GRAFANA_IMAGE}:${GRAFANA_TAG}
@@ -37,7 +32,8 @@ services:
     user: "472:0"
     restart: unless-stopped
     volumes:
-      - grafana_data:/var/lib/grafana
+      # Grafana keeps its DB, plugins, and generated state under /var/lib/grafana.
+      - ${GRAFANA_DATA_LOCATION}:/var/lib/grafana
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -121,9 +117,6 @@ services:
             - capabilities: ["gpu"]
     labels:
       - traefik.enable=false
-
-volumes:
-  grafana_data:
 
 networks:
   traefik:

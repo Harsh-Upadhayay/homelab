@@ -24,21 +24,23 @@ make logs-all         # recent logs (non-follow)
 ```
 
 ## per-app
-Use any of: `traefik monitoring authentik nextcloud audiobookshelf ollama jenkins cloudflared`
+Use any of: `traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama jenkins cloudflared`
 
 ```bash
 make up-traefik
 make logs-nextcloud
-make restart-authentik
+make restart-authelia
 make ps-jenkins
 make pull-monitoring
 make config-traefik
 make debug-ollama             # foreground, exits when a container exits
-make exec-nextcloud SERVICE=nextcloud SHELL=/bin/bash
+make exec-nextcloud SERVICE=nextcloud SH=/bin/bash
 ```
 
 ## notes
-- Only **user data** binds to `${HOMELAB_STORAGE_ROOT}`. App/system state uses **named Docker volumes** on SSD.
+- See [ops/upgrade-checklist.md](ops/upgrade-checklist.md) before changing image tags or storage paths.
+- Authoritative service state and user assets bind to `${HOMELAB_STORAGE_ROOT}`.
+- Declarative config stays in the repo; disposable caches and Docker internals stay on the compute node root disk.
 - All variables are prefixed by stack/app. Secrets live only in `ops/.env.local`.
 
 

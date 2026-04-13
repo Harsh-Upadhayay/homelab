@@ -11,8 +11,9 @@ services:
     volumes:
       - ${HOMELAB_STORAGE_ROOT}/audiobookshelf/audiobooks:/audiobooks
       - ${HOMELAB_STORAGE_ROOT}/audiobookshelf/podcasts:/podcasts
-      - abs_config:/config
-      - abs_metadata:/metadata
+      # App state lives in /config and /metadata; keep both on /storage.
+      - ${AUDIOBOOKSHELF_CONFIG_LOCATION}:/config
+      - ${AUDIOBOOKSHELF_METADATA_LOCATION}:/metadata
     networks:
       - traefik
     security_opt:
@@ -25,10 +26,6 @@ services:
       - traefik.http.routers.audiobookshelf.tls.certresolver=cloudflare
       - traefik.http.services.audiobookshelf.loadbalancer.server.port=${AUDIOBOOKSHELF_PORT}
       - traefik.http.routers.audiobookshelf.middlewares=secure-headers@docker
-
-volumes:
-  abs_config:
-  abs_metadata:
 
 networks:
   traefik:
