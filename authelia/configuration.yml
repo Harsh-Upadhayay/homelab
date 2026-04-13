@@ -8,6 +8,11 @@ server:
       forward-auth:
         implementation: "ForwardAuth"
         authn_strategies:
+          # Keep the portal/cookie flow for browsers, but also allow API
+          # clients like Raycast to authenticate with HTTP Basic Auth.
+          - name: "HeaderAuthorization"
+            schemes:
+              - "Basic"
           - name: "CookieSession"
 
 session:
