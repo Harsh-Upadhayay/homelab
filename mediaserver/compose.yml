@@ -216,75 +216,6 @@ services:
       - "traefik.http.routers.jellyfin.middlewares=secure-headers@docker"
       - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
 
-  tdarr:
-    image: ghcr.io/haveagitgat/tdarr:latest
-    container_name: tdarr
-    restart: unless-stopped
-    env_file:
-      - ./app.env
-    environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-      # run only the server here; we'll use a dedicated GPU node container
-      - internalNode=false
-    networks: [traefik, default]
-    volumes:
-      - tdarr_server:/app/server
-      - tdarr_configs:/app/configs
-      - tdarr_logs:/app/logs
-      - ${MEDIASERVER_DATA_ROOT}:/data
-      - tdarr_cache:/temp
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.tdarr.rule=Host(`${TDARR_HOST}`)"
-      - "traefik.http.routers.tdarr.entrypoints=websecure"
-      - "traefik.http.routers.tdarr.tls.certresolver=cloudflare"
-      - "traefik.http.routers.tdarr.middlewares=authelia-forwardauth@docker,secure-headers@docker"
-      - "traefik.http.services.tdarr.loadbalancer.server.port=8265"
-
-
-  tdarr-node:
-    image: ghcr.io/haveagitgat/tdarr_node:latest
-    container_name: tdarr-node
-    restart: unless-stopped
-    env_file:
-      - ./app.env
-    environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - serverIP=tdarr
-      - serverPort=8266
-      - nodeName=gtx1660super
-      - inContainer=true
-      - ffmpegVersion=7
-      # workers: 1 GPU worker + 0-2 CPU workers for scanning/healthchecks
-      - transcodegpuWorkers=1
-      - transcodecpuWorkers=0
-      - healthcheckgpuWorkers=1
-      - healthcheckcpuWorkers=0
-      # NVENC env (compose + runtime)
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
-    depends_on: [tdarr]
-    networks: [default]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    # if you also have Intel iGPU, you may keep /dev/dri passed; not required for NVENC
-    devices: []
-    volumes:
-      - tdarr_configs:/app/configs
-      - tdarr_logs:/app/logs
-      - ${MEDIASERVER_DATA_ROOT}:/data
-      - tdarr_cache:/temp
-
-
 volumes:
   gluetun_state:
   qbit_config:
@@ -294,10 +225,6 @@ volumes:
   jellyfin_config:
   jellyfin_cache:
   jellyseerr_config:
-  tdarr_server:
-  tdarr_configs:
-  tdarr_logs:
-  tdarr_cache:
 
 networks:
   traefik:
