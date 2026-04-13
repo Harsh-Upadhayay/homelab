@@ -11,7 +11,9 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
+      # Do not edit the next line. If you want to change the TSDB storage
+      # location on your system, edit PROMETHEUS_DATA_LOCATION in app.env.
+      - ${PROMETHEUS_DATA_LOCATION}:/prometheus
     networks:
       - traefik
     env_file:
@@ -121,7 +123,6 @@ services:
       - traefik.enable=false
 
 volumes:
-  prometheus_data:
   grafana_data:
 
 networks:

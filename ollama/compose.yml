@@ -6,7 +6,9 @@ services:
     env_file:
       - ../ops/.env.local
     volumes:
-      - ollama_data:/root/.ollama
+      # Do not edit the next line. If you want to change the model storage
+      # location on your system, edit OLLAMA_DATA_LOCATION in app.env.
+      - ${OLLAMA_DATA_LOCATION}:/root/.ollama
     networks:
       - traefik
     security_opt:
@@ -51,9 +53,6 @@ services:
       - traefik.http.routers.ollama-openai.middlewares=secure-headers@docker
       - traefik.http.routers.ollama-openai.service=ollama-openai
       - traefik.http.services.ollama-openai.loadbalancer.server.port=80
-
-volumes:
-  ollama_data:
 
 networks:
   traefik:

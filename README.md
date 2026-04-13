@@ -24,7 +24,7 @@ make logs-all         # recent logs (non-follow)
 ```
 
 ## per-app
-Use any of: `traefik monitoring authentik nextcloud audiobookshelf ollama jenkins portainer cloudflared`
+Use any of: `traefik monitoring authentik nextcloud audiobookshelf ollama jenkins cloudflared`
 
 ```bash
 make up-traefik

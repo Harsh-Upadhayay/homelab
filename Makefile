@@ -1,6 +1,6 @@
 # ---------- settings ----------
 OPS_ENV ?= ops/.env.local
-APPS := traefik monitoring nextcloud audiobookshelf ollama jenkins portainer cloudflared
+APPS := traefik monitoring nextcloud audiobookshelf ollama jenkins cloudflared
 
 # Use bash so 'set -e' works reliably within loops
 SHELL := /bin/bash
