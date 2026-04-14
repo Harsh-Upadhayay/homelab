@@ -1,2 +1,19 @@
 - permissions for /storage mounts (espically mediaserver)
 - backup
+
+**Highest-Value Findings**
+- The mediaserver ingest path is degraded right now. `gluetun` is `unhealthy`, and its logs show repeated OpenVPN `AUTH_FAILED` on April 14, 2026; `qbittorrent` shares Gluetun’s network namespace, so this is the first thing to fix ([mediaserver/compose.yml](/home/neovara/homelab/mediaserver/compose.yml:4), [mediaserver/compose.yml](/home/neovara/homelab/mediaserver/compose.yml:29)).
+- Backup/restore is the biggest missing control. The repo documents a backup pool at [init/fstab](/home/neovara/homelab/init/fstab:41), but the host currently has no `/mnt/backup` mount, `/mnt/extstorage1` is effectively empty, and I found no custom backup timers or backup service in the repo.
+- Several sensitive surfaces are exposed without central access control in repo config. Traefik dashboard is published as `api@internal` with only headers middleware ([traefik/compose.yml](/home/neovara/homelab/traefik/compose.yml:52)), LLDAP UI is exposed without auth middleware ([authelia/compose.yml](/home/neovara/homelab/authelia/compose.yml:102)), and Immich also binds directly to `0.0.0.0:2283`, bypassing Traefik entirely ([immich/compose.yml](/home/neovara/homelab/immich/compose.yml:18)).
+- Version/update hygiene has drifted. Immich still tracks moving `release` tags ([immich/app.env](/home/neovara/homelab/immich/app.env:2)) despite your own “never track moving tags” rule ([ops/upgrade-checklist.md](/home/neovara/homelab/ops/upgrade-checklist.md:6)). Jenkins is also inconsistent: [jenkins/app.env](/home/neovara/homelab/jenkins/app.env:1) declares `lts-jdk17`, but the actual controller image is hard-coded in [jenkins/Dockerfile](/home/neovara/homelab/jenkins/Dockerfile:1), so `pull-jenkins` does not really control that image.
+- Monitoring exists, but operations are not yet closed-loop. Prometheus only scrapes five infra targets ([monitoring/prometheus/prometheus.yml](/home/neovara/homelab/monitoring/prometheus/prometheus.yml:3)), I found no alerting stack, and there are no committed Grafana dashboards, so you have metrics collection but not reliable failure detection.
+- Env/docs hygiene is drifting. [README.md](/home/neovara/homelab/README.md:7) says secrets live in `ops/.env.local`, but [immich/app.env](/home/neovara/homelab/immich/app.env:13) commits a DB password. The sample env also still has stale/typoed host vars ([ops/.env.local.sample](/home/neovara/homelab/ops/.env.local.sample:61)), and Authelia still references `TDARR_HOST` after Tdarr was removed ([authelia/configuration.yml](/home/neovara/homelab/authelia/configuration.yml:105)). README also documents a Traefik file provider that the live stack does not use ([README.md](/home/neovara/homelab/README.md:55), [traefik/compose.yml](/home/neovara/homelab/traefik/compose.yml:9)).
+
+**Recommended Next Steps**
+1. Fix Gluetun/VPN auth first and verify qBittorrent egress is still forced through the VPN.
+2. Implement real backups: mount the backup disk, add a scheduled backup tool (`restic` or `borg`), and do one restore drill for Authelia, LLDAP, Nextcloud DB/data, Jenkins, and mediaserver configs.
+3. Front-door all admin surfaces through one control plane: at minimum Traefik, LLDAP, and Jenkins; remove Immich’s direct host port unless you explicitly want LAN bypass.
+4. Clean repo drift: pin Immich to exact versions, make Jenkins image versioning come from one source of truth, remove Tdarr leftovers, and fix the stale `.env.local.sample`/README/init script issues.
+5. Add alerting and service-level probes: disk usage on `/storage`, VPN health, certificate expiry, container health, and external HTTP checks for your public entrypoints.
+6. Normalize env policy: move the Immich DB password out of git, switch hard-coded `/storage/...` paths to `${HOMELAB_STORAGE_ROOT}`, and audit anonymous Docker volumes such as Immich’s `/data`.
+

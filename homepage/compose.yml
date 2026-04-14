@@ -1,0 +1,35 @@
+services:
+  homepage:
+    build:
+      context: .
+    container_name: homepage
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    networks:
+      - traefik
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${HOMEPAGE_PORT}:${HOMEPAGE_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${HOMEPAGE_PORT}/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.homepage.rule=Host(`${HOMELAB_DOMAIN}`)
+      - traefik.http.routers.homepage.entrypoints=websecure
+      - traefik.http.routers.homepage.tls.certresolver=cloudflare
+      - traefik.http.routers.homepage.middlewares=secure-headers@docker
+      - traefik.http.services.homepage.loadbalancer.server.port=${HOMEPAGE_PORT}
+
+networks:
+  traefik:
+    external: true

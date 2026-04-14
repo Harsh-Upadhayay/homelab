@@ -1,0 +1,11 @@
+.git
+.next
+node_modules
+npm-debug.log
+README.md
+AGENTS.md
+CLAUDE.md
+server.js
+public/index.html
+public/app.js
+public/styles.css
