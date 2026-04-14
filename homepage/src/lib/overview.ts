@@ -244,13 +244,27 @@ function humanizeEnvName(value: string) {
     .join(" ");
 }
 
+function normalizeHost(value: string) {
+  return value
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/^['"]|['"]$/g, "")
+    .replaceAll("${HOMELAB_DOMAIN}", DOMAIN)
+    .replaceAll("${domain}", DOMAIN);
+}
+
 function buildServiceCatalog() {
   const catalog: Array<
     Omit<CheckedService, "active" | "state" | "statusCode" | "responseTimeMs" | "error">
   > = [];
 
   for (const service of KNOWN_SERVICES) {
-    const host = process.env[service.hostEnv];
+    const rawHost = process.env[service.hostEnv];
+    if (!rawHost) {
+      continue;
+    }
+
+    const host = normalizeHost(rawHost);
     if (!host) {
       continue;
     }
@@ -268,11 +282,12 @@ function buildServiceCatalog() {
     });
   }
 
-  for (const [key, value] of Object.entries(process.env)) {
-    if (!key.endsWith("_HOST") || !value || IGNORED_DYNAMIC_HOSTS.has(key)) {
+  for (const [key, rawValue] of Object.entries(process.env)) {
+    if (!key.endsWith("_HOST") || !rawValue || IGNORED_DYNAMIC_HOSTS.has(key)) {
       continue;
     }
 
+    const value = normalizeHost(rawValue);
     if (!value.includes(DOMAIN)) {
       continue;
     }

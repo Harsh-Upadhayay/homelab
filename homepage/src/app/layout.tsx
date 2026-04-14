@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import { JetBrains_Mono, Sora } from "next/font/google";
 import "./globals.css";
 
-const bodyFont = Manrope({
-  variable: "--font-manrope",
+const bodyFont = Sora({
+  variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const displayFont = Space_Grotesk({
-  variable: "--font-space-grotesk",
+const monoFont = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "Neovara Homelab",
+  title: "neovara.uk | Homelab Platform",
   description:
-    "Dark minimal homepage for the Neovara homelab with architecture diagrams, security model, live routes, and runtime telemetry.",
+    "Interactive architecture and live service topology for the neovara.uk homelab platform.",
   icons: {
     icon: "/favicon.svg",
   },
@@ -30,7 +32,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`dark ${bodyFont.variable} ${displayFont.variable} h-full antialiased`}
+      className={`dark h-full antialiased ${bodyFont.variable} ${monoFont.variable}`}
     >
       <body className="min-h-full font-sans text-foreground">{children}</body>
     </html>
