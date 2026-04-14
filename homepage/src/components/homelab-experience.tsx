@@ -29,6 +29,8 @@ import {
 import { ArchitectureMap } from "@/components/architecture-map";
 import type { CheckedService, Overview } from "@/lib/overview";
 import { cn } from "@/lib/utils";
+import { Spotlight } from "@/components/ui/spotlight-new";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -148,49 +150,56 @@ function StatusPill({ active, error }: { active: boolean; error: string | null }
 
 function ServiceCard({ service }: { service: CheckedService }) {
   return (
-    <motion.article
-      whileHover={{ y: -5, rotateX: 2, rotateY: -2 }}
-      transition={{ duration: 0.22 }}
-      className="group relative rounded-2xl border border-white/12 bg-[linear-gradient(170deg,rgba(255,255,255,0.09),rgba(255,255,255,0.03))] p-4 backdrop-blur-xl"
-    >
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-      <div className="relative space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h4 className="text-sm font-semibold text-white">{service.name}</h4>
-            <p className="mt-0.5 text-[11px] text-white/55">{service.description}</p>
-          </div>
-          <StatusPill active={service.active} error={service.error} />
-        </div>
-
-        <div className="rounded-xl border border-white/10 bg-black/40 px-2.5 py-2">
-          <p className="truncate font-mono text-[11px] text-white/72">{service.host}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-[11px] text-white/65">
-          <div className="rounded-lg border border-white/10 bg-black/35 px-2 py-1.5">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-white/42">Access</p>
-            <p className="mt-1 font-medium text-white/84">{service.access}</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/35 px-2 py-1.5">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-white/42">Latency</p>
-            <p className="mt-1 font-medium text-white/84">
-              {service.statusCode ? `${service.responseTimeMs}ms` : "--"}
-            </p>
-          </div>
-        </div>
-
-        <a
-          href={service.url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-[11px] text-white/70 transition-colors hover:text-white"
+    <CardContainer containerClassName="w-full h-full py-0" className="w-full h-full">
+      <CardBody className="group relative rounded-2xl border border-white/5 bg-black p-5 md:p-6 w-full h-auto min-h-[190px] shadow-[0_4px_20px_rgb(0,0,0,0.5)] transition-shadow hover:shadow-[0_8px_30px_rgb(255,255,255,0.06)] hover:border-white/15">
+        <CardItem
+          translateZ="30"
+          className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
         >
-          Open Endpoint <ArrowRight className="h-3 w-3" />
-        </a>
-      </div>
-    </motion.article>
+          <div />
+        </CardItem>
+
+        <div className="relative space-y-5">
+          <CardItem translateZ="40" className="flex items-start justify-between gap-3 w-full">
+            <div>
+              <h4 className="text-lg font-light tracking-wide text-white">{service.name}</h4>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-white/40 font-light">{service.description}</p>
+            </div>
+            <div className="mt-1">
+              <StatusPill active={service.active} error={service.error} />
+            </div>
+          </CardItem>
+
+          <CardItem translateZ="50" className="rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5">
+            <p className="truncate font-mono text-xs tracking-wider text-white/50">{service.host}</p>
+          </CardItem>
+
+          <CardItem translateZ="60" className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">Access</p>
+              <p className="text-sm font-medium text-white/80">{service.access}</p>
+            </div>
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">Latency</p>
+              <p className="text-sm font-medium text-white/80">
+                {service.statusCode ? `${service.responseTimeMs}ms` : "--"}
+              </p>
+            </div>
+          </CardItem>
+
+          <CardItem translateZ="70" className="pt-2 inline-block w-full text-right">
+            <a
+              href={service.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-end gap-2 text-[13px] font-medium text-white/40 transition-colors hover:text-white"
+            >
+              Open Endpoint <ArrowRight className="h-4 w-4" />
+            </a>
+          </CardItem>
+        </div>
+      </CardBody>
+    </CardContainer>
   );
 }
 
@@ -263,67 +272,57 @@ export function HomelabExperience({
   const publicServices = overview.services.filter((service) => service.access === "Public").length;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-hidden bg-black text-white selection:bg-white/20 selection:text-white">
       <div className="pointer-events-none fixed inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(255,255,255,0.08),transparent_20%),radial-gradient(circle_at_82%_20%,rgba(255,255,255,0.05),transparent_24%),radial-gradient(circle_at_40%_88%,rgba(255,255,255,0.04),transparent_24%)]" />
-        <motion.div
-          className="absolute -left-40 top-20 h-[28rem] w-[28rem] rounded-full bg-white/[0.06] blur-[140px]"
-          animate={{ x: [0, 70, 0], y: [0, -18, 0] }}
-          transition={{ duration: 24, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute -right-44 bottom-10 h-[30rem] w-[30rem] rounded-full bg-white/[0.05] blur-[160px]"
-          animate={{ x: [0, -90, 0], y: [0, 24, 0] }}
-          transition={{ duration: 29, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-        />
-        <div className="depth-grid absolute inset-0" />
-        <div className="depth-noise absolute inset-0 opacity-35" />
+        <Spotlight />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.1),rgba(255,255,255,0))]" />
+        <div className="depth-noise absolute inset-0 opacity-20" />
       </div>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-5 pb-20 pt-12 md:px-8 md:pt-16 lg:px-12">
+      <main className="relative z-10 mx-auto max-w-7xl px-5 pb-20 pt-12 md:px-8 md:pt-24 lg:px-12">
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.62 }}
           className="relative"
         >
-          <div className="surface-panel-strong relative overflow-hidden rounded-3xl p-7 md:p-10">
-            <div className="pointer-events-none absolute right-8 top-8 hidden rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/70 md:block">
+          <div className="surface-panel-strong relative overflow-hidden rounded-3xl p-8 md:p-14">
+            <div className="pointer-events-none absolute right-8 top-8 hidden rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-white/50 md:block">
               Live Stack
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-[10px] uppercase tracking-[0.19em] text-white/72">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/60">
               <Sparkles className="h-3.5 w-3.5" />
               neovara.uk homelab
             </div>
 
-            <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-tight tracking-tight text-white md:text-6xl md:leading-[1.05]">
-              Platform Engineering on a Single Domain, With Production-Grade Controls.
+            <h1 className="mt-8 max-w-4xl text-5xl font-light tracking-tight text-white md:text-7xl md:leading-[1.1] [text-wrap:balance]">
+              Platform Engineering on a Single Domain.
             </h1>
 
-            <p className="mt-5 max-w-3xl text-sm leading-relaxed text-white/70 md:text-base">
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/50 md:text-xl font-light">
               This lab routes every workload through a hardened Traefik edge, enforces
-              policy via Authelia + LLDAP, and runs cloud, media, automation, observability,
-              and local AI services behind typed, containerized infrastructure.
+              policy via Authelia, and runs containerized infrastructure for cloud, media,
+              and AI workloads.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-10 flex flex-wrap gap-4">
               <a
                 href="#architecture"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:border-white/45 hover:bg-white/16"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white px-6 py-3 text-sm font-medium text-black transition hover:bg-white/90"
               >
                 Inspect Architecture
                 <ArrowRight className="h-4 w-4" />
               </a>
               <a
                 href="#services"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/82 transition hover:border-white/30 hover:text-white"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-6 py-3 text-sm font-medium text-white/70 transition hover:bg-black/60 hover:text-white hover:border-white/20"
               >
                 Browse Services
               </a>
             </div>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="metric-card">
                 <p className="metric-label">Published Endpoints</p>
                 <p className="metric-value">{overview.summary.totalServices}</p>
@@ -336,9 +335,9 @@ export function HomelabExperience({
                 <p className="metric-label">Public Surfaces</p>
                 <p className="metric-value">{publicServices}</p>
               </div>
-              <div className="metric-card">
+              <div className="metric-card flex flex-col justify-center">
                 <p className="metric-label">Runtime Domain</p>
-                <p className="metric-value text-lg md:text-xl">{overview.meta.domain}</p>
+                <p className="metric-value text-xl md:text-2xl mt-2">{overview.meta.domain}</p>
               </div>
             </div>
           </div>
@@ -350,11 +349,11 @@ export function HomelabExperience({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.5 }}
-          className="mt-16 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
+          className="mt-28 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
         >
-          <div className="surface-panel rounded-3xl p-6 md:p-8">
+          <div className="surface-panel rounded-[2rem] p-8 md:p-12 border border-white/5 bg-black/40">
             <p className="section-eyebrow">About The Lab</p>
-            <h2 className="section-title">A segmented stack built for real workloads, not demos.</h2>
+            <h2 className="section-title">A segmented stack built for real workloads.</h2>
             <p className="section-copy">
               Every internet-facing request enters through Cloudflare and Traefik. Access
               policy is centralized in Authelia with LLDAP groups and OIDC clients for
@@ -362,30 +361,38 @@ export function HomelabExperience({
               and persistent data lives under a unified storage root for reliable backups.
             </p>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
               <div className="info-tile">
-                <Route className="h-4 w-4 text-white/90" />
+                <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 border border-white/10 shrink-0">
+                  <Route className="h-4 w-4 text-white/70" />
+                </div>
                 <div>
                   <p className="info-title">Edge Routing</p>
                   <p className="info-copy">Traefik v3 with TLS automation, strict headers, and middleware chaining.</p>
                 </div>
               </div>
               <div className="info-tile">
-                <Lock className="h-4 w-4 text-white/90" />
+                <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 border border-white/10 shrink-0">
+                  <Lock className="h-4 w-4 text-white/70" />
+                </div>
                 <div>
                   <p className="info-title">Identity Layer</p>
                   <p className="info-copy">ForwardAuth + OIDC with per-domain policy and session boundaries.</p>
                 </div>
               </div>
               <div className="info-tile">
-                <HardDrive className="h-4 w-4 text-white/90" />
+                <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 border border-white/10 shrink-0">
+                  <HardDrive className="h-4 w-4 text-white/70" />
+                </div>
                 <div>
                   <p className="info-title">State & Storage</p>
                   <p className="info-copy">Service state and user data persisted under /storage for deterministic recovery.</p>
                 </div>
               </div>
               <div className="info-tile">
-                <Bot className="h-4 w-4 text-white/90" />
+                <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 border border-white/10 shrink-0">
+                  <Bot className="h-4 w-4 text-white/70" />
+                </div>
                 <div>
                   <p className="info-title">Local AI</p>
                   <p className="info-copy">Ollama node with OpenAI-compatible gateway routed on /v1.</p>
@@ -394,10 +401,10 @@ export function HomelabExperience({
             </div>
           </div>
 
-          <div className="surface-panel rounded-3xl p-6 md:p-8">
+          <div className="surface-panel rounded-[2rem] p-8 md:p-12 border border-white/5 bg-black/40 flex flex-col">
             <p className="section-eyebrow">Operational Telemetry</p>
-            <h3 className="section-title text-2xl md:text-3xl">Live Node Metrics</h3>
-            <div className="mt-5 space-y-3">
+            <h3 className="section-title text-3xl md:text-4xl">Live Node Metrics.</h3>
+            <div className="mt-8 flex-1 flex flex-col justify-between gap-3">
               <div className="metric-row">
                 <span>CPU Utilization</span>
                 <strong>{formatPercent(overview.metrics.cpuPercent)}</strong>
@@ -444,38 +451,38 @@ export function HomelabExperience({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.15 }}
           transition={{ duration: 0.54 }}
-          className="mt-20"
+          className="mt-28"
         >
           <p className="section-eyebrow">Architecture</p>
-          <h2 className="section-title">Interactive service topology for neovara.uk</h2>
+          <h2 className="section-title">Interactive service topology.</h2>
           <p className="section-copy max-w-3xl">
             Hover or click nodes to inspect routing and trust boundaries. The map reflects
             the deployed stack: Cloudflare ingress, Traefik routers, Authelia forward-auth,
             OIDC flows, workload fabrics, observability, and storage dependencies.
           </p>
 
-          <div className="mt-6">
+          <div className="mt-10">
             <ArchitectureMap overview={overview} />
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <div className="surface-panel rounded-2xl p-4">
-              <p className="text-[10px] uppercase tracking-[0.17em] text-white/45">Proxy Strategy</p>
-              <p className="mt-2 text-sm text-white/78">
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="surface-panel rounded-[1.5rem] p-6 border border-white/5 bg-black/40 hover:bg-black/60 transition-colors">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Proxy Strategy</p>
+              <p className="mt-3 text-sm text-white/60 font-light leading-relaxed">
                 `Host(ollama)` routes core inference while `Host(ollama) && PathPrefix(/v1)`
                 targets the OpenAI-compatible gateway.
               </p>
             </div>
-            <div className="surface-panel rounded-2xl p-4">
-              <p className="text-[10px] uppercase tracking-[0.17em] text-white/45">Security Boundary</p>
-              <p className="mt-2 text-sm text-white/78">
+            <div className="surface-panel rounded-[1.5rem] p-6 border border-white/5 bg-black/40 hover:bg-black/60 transition-colors">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Security Boundary</p>
+              <p className="mt-3 text-sm text-white/60 font-light leading-relaxed">
                 Protected surfaces consume Authelia forward-auth and host-specific `/authelia`
                 routers for portal and cookie handling.
               </p>
             </div>
-            <div className="surface-panel rounded-2xl p-4">
-              <p className="text-[10px] uppercase tracking-[0.17em] text-white/45">Observability</p>
-              <p className="mt-2 text-sm text-white/78">
+            <div className="surface-panel rounded-[1.5rem] p-6 border border-white/5 bg-black/40 hover:bg-black/60 transition-colors">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Observability</p>
+              <p className="mt-3 text-sm text-white/60 font-light leading-relaxed">
                 Prometheus scrapes Traefik, node-exporter, cAdvisor, and DCGM; Grafana is
                 exposed via Traefik with OIDC-backed authentication.
               </p>
@@ -489,44 +496,44 @@ export function HomelabExperience({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.12 }}
           transition={{ duration: 0.54 }}
-          className="mt-20"
+          className="mt-28"
         >
           <p className="section-eyebrow">Services</p>
-          <h2 className="section-title">Published endpoints with live checks</h2>
+          <h2 className="section-title">Published endpoints.</h2>
 
-          <div className="mt-6 space-y-7">
+          <div className="mt-8 space-y-10">
             {servicesBySection.map(([section, services]) => {
               const meta = SECTION_META[section] ?? SECTION_META.Lab;
               const Icon = meta.icon;
               const onlineCount = services.filter((service) => service.active).length;
 
               return (
-                <section key={section} className="surface-panel rounded-3xl p-5 md:p-6">
-                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <section key={section} className="surface-panel rounded-[2rem] p-6 md:p-10 border border-white/5 bg-black/40">
+                  <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-white/42">
-                        <Icon className="h-3.5 w-3.5" />
+                      <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-white/40">
+                        <Icon className="h-4 w-4" />
                         {meta.title}
                       </div>
-                      <h3 className="mt-1 text-2xl font-semibold text-white">{section}</h3>
-                      <p className="text-sm text-white/66">{meta.description}</p>
+                      <h3 className="mt-3 text-3xl font-light tracking-wide text-white">{section}</h3>
+                      <p className="mt-2 text-base text-white/50 font-light">{meta.description}</p>
                     </div>
 
-                    <div className="rounded-xl border border-white/12 bg-black/40 px-3 py-2 text-right">
-                      <p className="text-[10px] uppercase tracking-[0.15em] text-white/42">Health</p>
-                      <p className="mt-1 text-sm font-medium text-white">
-                        {onlineCount}/{services.length} online
+                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3 text-right min-w-[120px]">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Health</p>
+                      <p className="mt-1 text-base font-light text-white">
+                        {onlineCount} / {services.length} <span className="text-white/40 text-sm">online</span>
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {services.map((service) => (
                       <ServiceCard key={service.id} service={service} />
                     ))}
                   </div>
 
-                  <div className={cn("pointer-events-none mt-4 h-px bg-gradient-to-r", meta.tone)} />
+                  <div className={cn("pointer-events-none mt-8 h-[1px] w-full bg-gradient-to-r", meta.tone)} />
                 </section>
               );
             })}
@@ -537,16 +544,19 @@ export function HomelabExperience({
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="mt-16 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/58"
+          className="mt-28 mb-8 rounded-2xl border border-white/5 bg-black/40 p-5 text-xs text-white/40 flex flex-wrap items-center justify-between gap-4"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5">
-              <Activity className="h-3.5 w-3.5" />
-              Last refreshed {new Date(overview.meta.refreshedAt).toLocaleString("en-GB", { timeZone: "UTC" })} UTC
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <span>
-              {overview.summary.activeServices}/{overview.summary.totalServices} services reachable
+              System operational. Last refreshed {new Date(overview.meta.refreshedAt).toLocaleString("en-GB", { timeZone: "UTC" })} UTC
             </span>
+          </div>
+          <div className="font-mono tracking-wider">
+            {overview.summary.activeServices} / {overview.summary.totalServices} ONLINE
           </div>
         </motion.footer>
       </main>

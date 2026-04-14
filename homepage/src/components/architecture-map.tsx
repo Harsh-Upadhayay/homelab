@@ -411,22 +411,32 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,1fr)]">
-      <div className="surface-panel relative overflow-hidden rounded-3xl p-4 md:p-6">
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.12),transparent_26%),radial-gradient(circle_at_78%_84%,rgba(255,255,255,0.08),transparent_30%)]" />
-        <div className="map-stage relative mx-auto aspect-[16/11] w-full max-w-[940px]">
+      <div className="surface-panel relative overflow-hidden rounded-3xl p-4 md:p-6" style={{ perspective: "1200px" }}>
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.06),transparent_26%),radial-gradient(circle_at_78%_84%,rgba(255,255,255,0.04),transparent_30%)]" />
+        <motion.div 
+          className="map-stage relative mx-auto aspect-[16/11] w-full max-w-[940px]"
+          initial={{ rotateX: 10, rotateY: 0, rotateZ: 0 }}
+          animate={{ rotateX: [10, 15, 10], rotateY: [-2, 2, -2] }}
+          transition={{ duration: 20, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+          style={{ transformStyle: "preserve-3d" }}
+        >
           <svg
             viewBox="0 0 100 100"
             className="pointer-events-none absolute inset-0 h-full w-full"
             aria-hidden
           >
             <defs>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
               <linearGradient id="route-line" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.65)" />
-                <stop offset="100%" stopColor="rgba(255,255,255,0.08)" />
+                <stop offset="0%" stopColor="rgba(255,255,255,0.4)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
               </linearGradient>
               <linearGradient id="route-line-active" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="rgba(96,165,250,0.95)" />
-                <stop offset="100%" stopColor="rgba(167,139,250,0.35)" />
+                <stop offset="0%" stopColor="rgba(255,255,255,1)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0.3)" />
               </linearGradient>
             </defs>
 
@@ -460,8 +470,8 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
                   />
 
                   {isRelated ? (
-                    <circle r="0.45" fill="rgba(147,197,253,0.85)">
-                      <animateMotion dur="7s" repeatCount="indefinite" path={path} />
+                    <circle r="0.6" fill="#fff" filter="url(#glow)">
+                      <animateMotion dur="4s" repeatCount="indefinite" path={path} />
                     </circle>
                   ) : null}
 
@@ -472,16 +482,16 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
                       width={10.4}
                       height={3.6}
                       rx={1.8}
-                      fill="rgba(0,0,0,0.78)"
-                      stroke="rgba(255,255,255,0.15)"
+                      fill="#000"
+                      stroke="rgba(255,255,255,0.2)"
                       strokeWidth="0.1"
                     />
                     <text
                       x={midX}
                       y={midY + 0.35}
                       textAnchor="middle"
-                      fill="rgba(255,255,255,0.7)"
-                      style={{ fontSize: "1.15px", letterSpacing: "0.08px" }}
+                      fill="rgba(255,255,255,0.9)"
+                      style={{ fontSize: "1.15px", letterSpacing: "0.08px", fontWeight: "500" }}
                     >
                       {link.label}
                     </text>
@@ -506,25 +516,19 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
                   "group absolute -translate-x-1/2 -translate-y-1/2 text-left",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
                 )}
-                style={{ left: `${node.x}%`, top: `${node.y}%` }}
-                initial={{ opacity: 0, y: 10 }}
+                style={{ left: `${node.x}%`, top: `${node.y}%`, transformStyle: "preserve-3d" }}
+                initial={{ opacity: 0, z: 0 }}
                 animate={{
                   opacity: 1,
-                  y: [0, -1.8, 0],
-                  scale: isActive ? 1.02 : 1,
+                  z: isActive ? 40 : 0,
+                  scale: isActive ? 1.05 : 1,
                 }}
                 transition={{
                   opacity: { duration: 0.45, delay: index * 0.03 },
-                  y: {
-                    duration: 4 + (index % 5),
-                    delay: index * 0.15,
-                    repeat: Number.POSITIVE_INFINITY,
-                    repeatType: "reverse",
-                    ease: "easeInOut",
-                  },
-                  scale: { duration: 0.2 },
+                  z: { duration: 0.6, type: "spring", bounce: 0.3 },
+                  scale: { duration: 0.3 },
                 }}
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.1, z: 30 }}
                 onHoverStart={() => setActiveNodeId(node.id)}
                 onFocus={() => setActiveNodeId(node.id)}
                 onClick={() => setActiveNodeId(node.id)}
@@ -532,13 +536,13 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
                 <div
                   className={cn(
                     "relative rounded-2xl border px-3 py-2 backdrop-blur-xl transition-all duration-300",
-                    "bg-[linear-gradient(160deg,rgba(255,255,255,0.11),rgba(255,255,255,0.02))]",
+                    "bg-[#050505]/90",
                     meta.ring,
                     isActive
-                      ? "border-white/45"
+                      ? "border-white/50 shadow-[0_10px_30px_rgba(255,255,255,0.1)]"
                       : isConnected
-                        ? "border-white/26"
-                        : "border-white/14",
+                        ? "border-white/30"
+                        : "border-white/10",
                   )}
                 >
                   <div
@@ -570,14 +574,19 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
               </motion.button>
             );
           })}
-        </div>
+        </motion.div>
       </div>
 
-      <aside className="surface-panel rounded-3xl p-5 md:p-6">
-        <div className="mb-4 flex items-start justify-between gap-3">
+      <motion.aside 
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative rounded-3xl border border-white/10 bg-[#050505]/60 p-5 md:p-8 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.4)]"
+      >
+        <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">Selected Component</p>
-            <h3 className="mt-1 text-xl font-semibold text-white">{activeNode.label}</h3>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mb-1">Selected Component</p>
+            <h3 className="mt-1 text-2xl font-light tracking-wide text-white">{activeNode.label}</h3>
           </div>
 
           <span
@@ -662,7 +671,7 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
             <Bot className="h-3 w-3" /> GPU AI
           </span>
         </div>
-      </aside>
+      </motion.aside>
     </div>
   );
 }
