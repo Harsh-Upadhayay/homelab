@@ -6,6 +6,8 @@ services:
   authelia:
     image: ${AUTHELIA_IMAGE}:${AUTHELIA_TAG}
     container_name: authelia
+    # Authelia documents Docker's user override as the preferred non-root model.
+    user: "1000:1000"
     restart: unless-stopped
     env_file:
       - ../ops/.env.local

@@ -143,6 +143,8 @@ services:
   jellyseerr:
     image: ${JELLYSEERR_IMAGE}:${JELLYSEERR_TAG}
     container_name: jellyseerr
+    # Run Jellyseerr as an unprivileged app user; /app/config is already on /storage.
+    user: "1000:1000"
     restart: unless-stopped
     env_file:
       - ./app.env
