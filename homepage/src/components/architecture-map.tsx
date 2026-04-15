@@ -27,12 +27,15 @@ type NodeKind =
   | "operations";
 
 type NodeStatus = "online" | "degraded" | "offline" | "internal";
+type LaneId = "edge" | "control" | "runtime" | "foundation";
+type LinkViewMode = "focused" | "all";
 
 type ArchitectureNode = {
   id: string;
   label: string;
   description: string;
   kind: NodeKind;
+  lane: LaneId;
   x: number;
   y: number;
   hostTemplates?: string[];
@@ -48,22 +51,26 @@ type ArchitectureLink = {
   protocol: string;
 };
 
+const LANE_ORDER: LaneId[] = ["edge", "control", "runtime", "foundation"];
+
 const NODES: ArchitectureNode[] = [
   {
     id: "internet",
     label: "Public Internet",
     description: "Client traffic enters over public DNS and HTTPS.",
     kind: "edge",
-    x: 50,
-    y: 8,
+    lane: "edge",
+    x: 18,
+    y: 12,
   },
   {
     id: "cloudflare",
     label: "Cloudflare",
     description: "DNS, edge controls, and optional tunnel ingress for remote access.",
     kind: "edge",
+    lane: "edge",
     x: 50,
-    y: 18,
+    y: 12,
   },
   {
     id: "traefik",
@@ -71,7 +78,8 @@ const NODES: ArchitectureNode[] = [
     description:
       "Primary reverse proxy: TLS automation, entrypoint routing, and middleware chaining.",
     kind: "routing",
-    x: 50,
+    lane: "control",
+    x: 20,
     y: 30,
     serviceIds: ["traefik"],
     hostTemplates: ["traefik.${domain}"],
@@ -83,8 +91,9 @@ const NODES: ArchitectureNode[] = [
     description:
       "Forward-auth policy engine and OIDC provider for protected services.",
     kind: "identity",
-    x: 24,
-    y: 45,
+    lane: "control",
+    x: 50,
+    y: 30,
     serviceIds: ["auth"],
     hostTemplates: ["auth.${domain}"],
     routes: ["/authelia/* portal", "ForwardAuth endpoint", "OIDC authorization/token"],
@@ -94,8 +103,9 @@ const NODES: ArchitectureNode[] = [
     label: "LLDAP",
     description: "Directory backend for user/groups consumed by Authelia access rules.",
     kind: "identity",
-    x: 10,
-    y: 58,
+    lane: "control",
+    x: 80,
+    y: 30,
     serviceIds: ["directory"],
     hostTemplates: ["lldap.${domain}"],
   },
@@ -105,8 +115,9 @@ const NODES: ArchitectureNode[] = [
     description:
       "Public root domain landing page with runtime service probes and architecture telemetry.",
     kind: "workload",
-    x: 50,
-    y: 45,
+    lane: "runtime",
+    x: 10,
+    y: 56,
     hostTemplates: ["${domain}"],
   },
   {
@@ -114,8 +125,9 @@ const NODES: ArchitectureNode[] = [
     label: "Nextcloud",
     description: "Personal cloud app backed by Postgres and Redis.",
     kind: "workload",
-    x: 36,
-    y: 60,
+    lane: "runtime",
+    x: 30,
+    y: 56,
     serviceIds: ["nextcloud"],
     hostTemplates: ["nextcloud.${domain}"],
   },
@@ -124,8 +136,9 @@ const NODES: ArchitectureNode[] = [
     label: "Immich",
     description: "Photo platform with machine-learning workers and vector search.",
     kind: "workload",
-    x: 48,
-    y: 60,
+    lane: "runtime",
+    x: 50,
+    y: 56,
     serviceIds: ["immich"],
     hostTemplates: ["immich.${domain}"],
   },
@@ -135,8 +148,9 @@ const NODES: ArchitectureNode[] = [
     description:
       "Jellyfin/Jellyseerr/qBittorrent + ARR stack with VPN-isolated ingestion and automation.",
     kind: "workload",
-    x: 64,
-    y: 60,
+    lane: "runtime",
+    x: 70,
+    y: 56,
     serviceIds: ["jellyfin", "jellyseerr", "qbit", "prowlarr", "sonarr", "radarr"],
     hostTemplates: [
       "jellyfin.${domain}",
@@ -152,8 +166,9 @@ const NODES: ArchitectureNode[] = [
     label: "Audiobookshelf",
     description: "Audiobook and podcast library with OIDC auth integration.",
     kind: "workload",
-    x: 76,
-    y: 60,
+    lane: "runtime",
+    x: 90,
+    y: 56,
     serviceIds: ["audiobookshelf"],
     hostTemplates: ["audiobookshelf.${domain}"],
   },
@@ -163,21 +178,12 @@ const NODES: ArchitectureNode[] = [
     description:
       "GPU-backed inference node with OpenAI-compatible gateway routed on /v1.",
     kind: "workload",
-    x: 86,
-    y: 45,
+    lane: "runtime",
+    x: 30,
+    y: 74,
     serviceIds: ["ollama"],
     hostTemplates: ["ollama.${domain}"],
     routes: ["Host(ollama) && PathPrefix(/v1)", "Bearer-gated gateway", "ForwardAuth for core API"],
-  },
-  {
-    id: "jenkins",
-    label: "Jenkins + DinD",
-    description: "CI controller and isolated Docker executor network for build automation.",
-    kind: "operations",
-    x: 82,
-    y: 73,
-    serviceIds: ["jenkins"],
-    hostTemplates: ["jenkins.${domain}"],
   },
   {
     id: "observability",
@@ -185,11 +191,23 @@ const NODES: ArchitectureNode[] = [
     description:
       "Metrics pipeline scraping Traefik, node-exporter, cAdvisor, and GPU exporter.",
     kind: "operations",
-    x: 18,
-    y: 73,
+    lane: "runtime",
+    x: 60,
+    y: 74,
     serviceIds: ["grafana"],
     hostTemplates: ["grafana.${domain}"],
     routes: ["Prometheus scrape: traefik,node,cadvisor,dcgm", "Grafana OIDC login via Authelia"],
+  },
+  {
+    id: "jenkins",
+    label: "Jenkins + DinD",
+    description: "CI controller and isolated Docker executor network for build automation.",
+    kind: "operations",
+    lane: "runtime",
+    x: 90,
+    y: 74,
+    serviceIds: ["jenkins"],
+    hostTemplates: ["jenkins.${domain}"],
   },
   {
     id: "storage",
@@ -197,8 +215,9 @@ const NODES: ArchitectureNode[] = [
     description:
       "State root for app data, media, model weights, and database volumes under /storage.",
     kind: "data",
-    x: 50,
-    y: 86,
+    lane: "foundation",
+    x: 38,
+    y: 90,
   },
   {
     id: "gpu",
@@ -206,8 +225,9 @@ const NODES: ArchitectureNode[] = [
     description:
       "Shared GPU resources serving Immich transcoding/ML, Ollama inference, and telemetry.",
     kind: "data",
-    x: 66,
-    y: 86,
+    lane: "foundation",
+    x: 68,
+    y: 90,
   },
 ];
 
@@ -239,51 +259,42 @@ const LINKS: ArchitectureLink[] = [
   { id: "l25", from: "authelia", to: "observability", label: "OIDC auth", protocol: "auth" },
 ];
 
-const KIND_META: Record<
-  NodeKind,
-  { label: string; icon: typeof Globe; dot: string; tone: string; ring: string }
+const KIND_META: Record<NodeKind, { label: string; icon: typeof Globe }> = {
+  edge: { label: "Edge", icon: Globe },
+  routing: { label: "Routing", icon: Route },
+  identity: { label: "Identity", icon: Shield },
+  workload: { label: "Workload", icon: Layers },
+  data: { label: "Data", icon: Database },
+  operations: { label: "Operations", icon: Gauge },
+};
+
+const LANE_META: Record<
+  LaneId,
+  { label: string; description: string; top: number; height: number }
 > = {
   edge: {
     label: "Edge",
-    icon: Globe,
-    dot: "bg-cyan-300",
-    tone: "from-cyan-400/20 to-cyan-200/0",
-    ring: "shadow-[0_0_32px_rgba(34,211,238,0.28)]",
+    description: "Public ingress",
+    top: 4,
+    height: 14,
   },
-  routing: {
-    label: "Routing",
-    icon: Route,
-    dot: "bg-blue-300",
-    tone: "from-blue-400/18 to-blue-200/0",
-    ring: "shadow-[0_0_32px_rgba(96,165,250,0.25)]",
+  control: {
+    label: "Control",
+    description: "Routing and identity",
+    top: 22,
+    height: 18,
   },
-  identity: {
-    label: "Identity",
-    icon: Shield,
-    dot: "bg-violet-300",
-    tone: "from-violet-400/18 to-violet-200/0",
-    ring: "shadow-[0_0_32px_rgba(167,139,250,0.28)]",
+  runtime: {
+    label: "Runtime",
+    description: "Apps and operations",
+    top: 44,
+    height: 38,
   },
-  workload: {
-    label: "Workload",
-    icon: Layers,
-    dot: "bg-emerald-300",
-    tone: "from-emerald-400/18 to-emerald-200/0",
-    ring: "shadow-[0_0_32px_rgba(52,211,153,0.24)]",
-  },
-  data: {
-    label: "Data",
-    icon: Database,
-    dot: "bg-amber-300",
-    tone: "from-amber-400/16 to-amber-200/0",
-    ring: "shadow-[0_0_32px_rgba(251,191,36,0.2)]",
-  },
-  operations: {
-    label: "Operations",
-    icon: Gauge,
-    dot: "bg-zinc-300",
-    tone: "from-zinc-300/16 to-zinc-200/0",
-    ring: "shadow-[0_0_32px_rgba(212,212,216,0.2)]",
+  foundation: {
+    label: "Foundation",
+    description: "State and compute",
+    top: 84,
+    height: 12,
   },
 };
 
@@ -293,23 +304,23 @@ const STATUS_META: Record<
 > = {
   online: {
     label: "Online",
-    className: "text-emerald-200 border-emerald-300/35 bg-emerald-500/10",
+    className: "text-emerald-200 border-emerald-300/25 bg-emerald-500/10",
     pingClass: "bg-emerald-300",
   },
   degraded: {
     label: "Degraded",
-    className: "text-amber-100 border-amber-300/40 bg-amber-500/10",
+    className: "text-amber-100 border-amber-300/25 bg-amber-500/10",
     pingClass: "bg-amber-300",
   },
   offline: {
     label: "Offline",
-    className: "text-rose-200 border-rose-300/40 bg-rose-500/10",
+    className: "text-rose-200 border-rose-300/25 bg-rose-500/10",
     pingClass: "bg-rose-300",
   },
   internal: {
     label: "Internal",
-    className: "text-zinc-300 border-zinc-400/30 bg-zinc-500/10",
-    pingClass: "bg-zinc-300",
+    className: "text-zinc-300 border-white/10 bg-white/[0.04]",
+    pingClass: "bg-white/55",
   },
 };
 
@@ -344,15 +355,18 @@ function getNodeStatus(node: ArchitectureNode, serviceState: Map<string, boolean
   return "offline";
 }
 
-function buildCurvePath(from: ArchitectureNode, to: ArchitectureNode) {
-  const controlWeight = Math.abs(from.x - to.x) > 22 ? 0.45 : 0.62;
-  const c1y = from.y + (to.y - from.y) * controlWeight;
-  const c2y = to.y - (to.y - from.y) * controlWeight;
-  return `M ${from.x} ${from.y} C ${from.x} ${c1y} ${to.x} ${c2y} ${to.x} ${to.y}`;
+function buildRoutePath(from: ArchitectureNode, to: ArchitectureNode) {
+  if (Math.abs(from.y - to.y) < 1) {
+    return `M ${from.x} ${from.y} H ${to.x}`;
+  }
+
+  const midY = from.y + (to.y - from.y) / 2;
+  return `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${to.y}`;
 }
 
 export function ArchitectureMap({ overview }: { overview: Overview }) {
   const [activeNodeId, setActiveNodeId] = useState<string>("traefik");
+  const [linkViewMode, setLinkViewMode] = useState<LinkViewMode>("focused");
 
   const domain = overview.meta.domain || "neovara.uk";
 
@@ -373,7 +387,6 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
   }, [overview.services]);
 
   const nodeById = useMemo(() => new Map(NODES.map((node) => [node.id, node])), []);
-
   const activeNode = nodeById.get(activeNodeId) ?? NODES[0];
 
   const relatedLinks = useMemo(
@@ -389,6 +402,32 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
     }
     return ids;
   }, [activeNode.id, relatedLinks]);
+
+  const highlightedLinkIds = useMemo(
+    () => new Set(relatedLinks.map((link) => link.id)),
+    [relatedLinks],
+  );
+
+  const connectedNodes = useMemo(() => {
+    const seen = new Set<string>();
+    const nodes: ArchitectureNode[] = [];
+
+    for (const link of relatedLinks) {
+      for (const nodeId of [link.from, link.to]) {
+        if (nodeId === activeNode.id || seen.has(nodeId)) {
+          continue;
+        }
+
+        const node = nodeById.get(nodeId);
+        if (node) {
+          seen.add(nodeId);
+          nodes.push(node);
+        }
+      }
+    }
+
+    return nodes;
+  }, [activeNode.id, nodeById, relatedLinks]);
 
   const selectedHosts = useMemo(() => {
     const hosts = new Set<string>();
@@ -408,185 +447,197 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
   }, [activeNode.hostTemplates, activeNode.serviceIds, domain, serviceHosts]);
 
   const selectedStatus = getNodeStatus(activeNode, serviceState);
+  const visibleLinks = linkViewMode === "all" ? LINKS : relatedLinks;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,1fr)]">
-      <div className="surface-panel relative overflow-hidden rounded-3xl p-4 md:p-6" style={{ perspective: "1200px" }}>
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.06),transparent_26%),radial-gradient(circle_at_78%_84%,rgba(255,255,255,0.04),transparent_30%)]" />
-        <motion.div 
-          className="map-stage relative mx-auto aspect-[16/11] w-full max-w-[940px]"
-          initial={{ rotateX: 10, rotateY: 0, rotateZ: 0 }}
-          animate={{ rotateX: [10, 15, 10], rotateY: [-2, 2, -2] }}
-          transition={{ duration: 20, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-          style={{ transformStyle: "preserve-3d" }}
-        >
-          <svg
-            viewBox="0 0 100 100"
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            aria-hidden
-          >
-            <defs>
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-              <linearGradient id="route-line" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.4)" />
-                <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
-              </linearGradient>
-              <linearGradient id="route-line-active" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="rgba(255,255,255,1)" />
-                <stop offset="100%" stopColor="rgba(255,255,255,0.3)" />
-              </linearGradient>
-            </defs>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,380px)]">
+      <section className="surface-panel rounded-[2rem] p-4 md:p-6">
+        <div className="flex flex-col gap-4 border-b border-white/8 pb-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-white/40">
+              Topology Board
+            </p>
+            <h3 className="mt-2 text-2xl font-light tracking-[-0.03em] text-white md:text-3xl">
+              Flat, focused, and screen-safe.
+            </h3>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50 md:text-[0.95rem]">
+              Click any component to isolate its dependencies. Toggle full routes when you want
+              the whole graph back.
+            </p>
+          </div>
 
-            {LINKS.map((link) => {
-              const from = nodeById.get(link.from);
-              const to = nodeById.get(link.to);
-
-              if (!from || !to) {
-                return null;
-              }
-
-              const isRelated =
-                link.from === activeNode.id ||
-                link.to === activeNode.id ||
-                (relatedNodeIds.has(link.from) && relatedNodeIds.has(link.to));
-
-              const path = buildCurvePath(from, to);
-              const midX = (from.x + to.x) / 2;
-              const midY = (from.y + to.y) / 2;
-
-              return (
-                <g key={link.id}>
-                  <path
-                    d={path}
-                    stroke={isRelated ? "url(#route-line-active)" : "url(#route-line)"}
-                    strokeWidth={isRelated ? 0.65 : 0.35}
-                    strokeOpacity={isRelated ? 0.95 : 0.45}
-                    strokeLinecap="round"
-                    fill="none"
-                    className={cn(isRelated && "route-flow")}
-                  />
-
-                  {isRelated ? (
-                    <circle r="0.6" fill="#fff" filter="url(#glow)">
-                      <animateMotion dur="4s" repeatCount="indefinite" path={path} />
-                    </circle>
-                  ) : null}
-
-                  <g>
-                    <rect
-                      x={midX - 5.2}
-                      y={midY - 1.8}
-                      width={10.4}
-                      height={3.6}
-                      rx={1.8}
-                      fill="#000"
-                      stroke="rgba(255,255,255,0.2)"
-                      strokeWidth="0.1"
-                    />
-                    <text
-                      x={midX}
-                      y={midY + 0.35}
-                      textAnchor="middle"
-                      fill="rgba(255,255,255,0.9)"
-                      style={{ fontSize: "1.15px", letterSpacing: "0.08px", fontWeight: "500" }}
-                    >
-                      {link.label}
-                    </text>
-                  </g>
-                </g>
-              );
-            })}
-          </svg>
-
-          {NODES.map((node, index) => {
-            const meta = KIND_META[node.kind];
-            const Icon = meta.icon;
-            const nodeStatus = getNodeStatus(node, serviceState);
-            const isActive = node.id === activeNode.id;
-            const isConnected = relatedNodeIds.has(node.id);
-
-            return (
-              <motion.button
-                key={node.id}
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] p-1">
+            {(["focused", "all"] as const).map((mode) => (
+              <button
+                key={mode}
                 type="button"
+                onClick={() => setLinkViewMode(mode)}
                 className={cn(
-                  "group absolute -translate-x-1/2 -translate-y-1/2 text-left",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+                  "rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] transition-colors",
+                  linkViewMode === mode
+                    ? "bg-white text-black"
+                    : "text-white/55 hover:text-white/80",
                 )}
-                style={{ left: `${node.x}%`, top: `${node.y}%`, transformStyle: "preserve-3d" }}
-                initial={{ opacity: 0, z: 0 }}
-                animate={{
-                  opacity: 1,
-                  z: isActive ? 40 : 0,
-                  scale: isActive ? 1.05 : 1,
-                }}
-                transition={{
-                  opacity: { duration: 0.45, delay: index * 0.03 },
-                  z: { duration: 0.6, type: "spring", bounce: 0.3 },
-                  scale: { duration: 0.3 },
-                }}
-                whileHover={{ scale: 1.1, z: 30 }}
-                onHoverStart={() => setActiveNodeId(node.id)}
-                onFocus={() => setActiveNodeId(node.id)}
-                onClick={() => setActiveNodeId(node.id)}
               >
-                <div
-                  className={cn(
-                    "relative rounded-2xl border px-3 py-2 backdrop-blur-xl transition-all duration-300",
-                    "bg-[#050505]/90",
-                    meta.ring,
-                    isActive
-                      ? "border-white/50 shadow-[0_10px_30px_rgba(255,255,255,0.1)]"
-                      : isConnected
-                        ? "border-white/30"
-                        : "border-white/10",
-                  )}
-                >
+                {mode === "focused" ? "Focus Mode" : "Full Graph"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-[#010101] p-3 md:p-4">
+          <div className="relative overflow-hidden rounded-[1.5rem] border border-white/8 bg-black">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0))]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:34px_34px] opacity-35" />
+
+            <div className="relative aspect-[16/11] min-h-[540px] w-full md:min-h-[620px]">
+              {LANE_ORDER.map((lane) => {
+                const laneMeta = LANE_META[lane];
+                const laneCount = NODES.filter((node) => node.lane === lane).length;
+
+                return (
                   <div
-                    className={cn(
-                      "pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 transition-opacity duration-300",
-                      meta.tone,
-                      (isActive || isConnected) && "opacity-100",
-                    )}
-                  />
-
-                  <div className="relative flex items-center gap-2.5">
-                    <div className="rounded-xl border border-white/20 bg-black/55 p-1.5">
-                      <Icon className="h-3.5 w-3.5 text-white/90" />
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">{meta.label}</p>
-                      <p className="text-xs font-medium text-white/95">{node.label}</p>
+                    key={lane}
+                    className="pointer-events-none absolute left-3 right-3 rounded-[1.35rem] border border-white/[0.05] bg-white/[0.02]"
+                    style={{ top: `${laneMeta.top}%`, height: `${laneMeta.height}%` }}
+                  >
+                    <div className="absolute left-3 top-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/35">
+                      <span>{laneMeta.label}</span>
+                      <span className="text-white/18">/</span>
+                      <span className="text-white/22">{laneMeta.description}</span>
+                      <span className="rounded-full border border-white/8 px-1.5 py-0.5 text-[9px] text-white/25">
+                        {laneCount}
+                      </span>
                     </div>
                   </div>
+                );
+              })}
 
-                  <span
-                    className={cn(
-                      "absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-black",
-                      STATUS_META[nodeStatus].pingClass,
-                    )}
-                  />
-                </div>
-              </motion.button>
-            );
-          })}
-        </motion.div>
-      </div>
+              <svg
+                viewBox="0 0 100 100"
+                className="pointer-events-none absolute inset-0 h-full w-full"
+                aria-hidden
+              >
+                {visibleLinks.map((link) => {
+                  const from = nodeById.get(link.from);
+                  const to = nodeById.get(link.to);
 
-      <motion.aside 
-        initial={{ opacity: 0, x: 20 }}
+                  if (!from || !to) {
+                    return null;
+                  }
+
+                  const isHighlighted = highlightedLinkIds.has(link.id);
+                  const path = buildRoutePath(from, to);
+
+                  return (
+                    <g key={link.id}>
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.18)"
+                        strokeWidth={isHighlighted ? 1.15 : 0.55}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeOpacity={isHighlighted ? 0.95 : 0.3}
+                        className={cn(isHighlighted && "route-flow")}
+                      />
+                      {isHighlighted ? (
+                        <circle r="0.75" fill="#ffffff">
+                          <animateMotion dur="3.2s" repeatCount="indefinite" path={path} />
+                        </circle>
+                      ) : null}
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {NODES.map((node, index) => {
+                const meta = KIND_META[node.kind];
+                const Icon = meta.icon;
+                const nodeStatus = getNodeStatus(node, serviceState);
+                const isActive = node.id === activeNode.id;
+                const isConnected = relatedNodeIds.has(node.id);
+                const fadeNode = linkViewMode === "focused" && !isConnected;
+
+                return (
+                  <motion.button
+                    key={node.id}
+                    type="button"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: fadeNode ? 0.42 : 1, y: 0, scale: isActive ? 1.03 : 1 }}
+                    transition={{ duration: 0.28, delay: index * 0.02 }}
+                    onMouseEnter={() => setActiveNodeId(node.id)}
+                    onFocus={() => setActiveNodeId(node.id)}
+                    onClick={() => setActiveNodeId(node.id)}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                    style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                  >
+                    <div
+                      className={cn(
+                        "w-[clamp(4.25rem,18vw,7rem)] rounded-[1.15rem] border bg-black/92 p-2.5 shadow-[0_24px_48px_rgba(0,0,0,0.45)] transition-colors md:w-[clamp(5rem,12vw,8rem)]",
+                        isActive
+                          ? "border-white/55 bg-[#050505]"
+                          : isConnected
+                            ? "border-white/20"
+                            : "border-white/10",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="rounded-[0.8rem] border border-white/10 bg-white/[0.04] p-1.5">
+                          <Icon className="h-3.5 w-3.5 text-white/88" />
+                        </span>
+                        <span
+                          className={cn(
+                            "mt-0.5 h-2.5 w-2.5 rounded-full border border-black",
+                            STATUS_META[nodeStatus].pingClass,
+                          )}
+                        />
+                      </div>
+
+                      <p className="mt-3 text-[9px] uppercase tracking-[0.22em] text-white/34">
+                        {meta.label}
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium leading-tight text-white/92 md:text-xs">
+                        {node.label}
+                      </p>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.18em] text-white/40">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
+            <Network className="h-3 w-3" /> Proxy path
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
+            <KeyRound className="h-3 w-3" /> Auth boundary
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
+            <HardDrive className="h-3 w-3" /> Shared state
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
+            <Bot className="h-3 w-3" /> GPU workloads
+          </span>
+        </div>
+      </section>
+
+      <motion.aside
+        initial={{ opacity: 0, x: 16 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative rounded-3xl border border-white/10 bg-[#050505]/60 p-5 md:p-8 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.4)]"
+        transition={{ duration: 0.35 }}
+        className="surface-panel rounded-[2rem] p-5 md:p-6"
       >
-        <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 border-b border-white/8 pb-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mb-1">Selected Component</p>
-            <h3 className="mt-1 text-2xl font-light tracking-wide text-white">{activeNode.label}</h3>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-white/36">
+              Selected Component
+            </p>
+            <h3 className="mt-2 text-2xl font-light tracking-[-0.03em] text-white">
+              {activeNode.label}
+            </h3>
           </div>
 
           <span
@@ -600,76 +651,104 @@ export function ArchitectureMap({ overview }: { overview: Overview }) {
           </span>
         </div>
 
-        <p className="text-sm leading-relaxed text-white/72">{activeNode.description}</p>
-
-        <div className="mt-5 grid gap-3">
-          <div className="rounded-2xl border border-white/12 bg-white/[0.03] p-3.5">
-            <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-white/45">Endpoints</p>
-            <div className="flex flex-wrap gap-1.5">
-              {selectedHosts.length ? (
-                selectedHosts.map((host) => (
-                  <a
-                    key={host}
-                    href={`https://${host}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg border border-white/15 bg-black/55 px-2 py-1 font-mono text-[11px] text-white/78 transition-colors hover:border-white/35 hover:text-white"
-                  >
-                    {host}
-                  </a>
-                ))
-              ) : (
-                <span className="text-xs text-white/52">No public endpoint</span>
-              )}
-            </div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-[1.1rem] border border-white/8 bg-white/[0.03] p-3">
+            <p className="text-[9px] uppercase tracking-[0.22em] text-white/35">Type</p>
+            <p className="mt-2 text-sm text-white/88">{KIND_META[activeNode.kind].label}</p>
           </div>
-
-          <div className="rounded-2xl border border-white/12 bg-white/[0.03] p-3.5">
-            <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-white/45">Routing Notes</p>
-            <ul className="space-y-1.5">
-              {(activeNode.routes?.length ? activeNode.routes : ["No custom route directives"])
-                .slice(0, 4)
-                .map((route) => (
-                  <li key={route} className="flex items-start gap-2 text-xs text-white/72">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/35" />
-                    <span>{route}</span>
-                  </li>
-                ))}
-            </ul>
+          <div className="rounded-[1.1rem] border border-white/8 bg-white/[0.03] p-3">
+            <p className="text-[9px] uppercase tracking-[0.22em] text-white/35">Flows</p>
+            <p className="mt-2 text-sm text-white/88">{relatedLinks.length}</p>
           </div>
-
-          <div className="rounded-2xl border border-white/12 bg-white/[0.03] p-3.5">
-            <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-white/45">Connected Flows</p>
-            <div className="space-y-1.5">
-              {relatedLinks.length ? (
-                relatedLinks.map((link) => (
-                  <div key={link.id} className="rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5">
-                    <p className="text-[11px] text-white/88">{link.label}</p>
-                    <p className="mt-0.5 text-[10px] text-white/46">
-                      {link.from} {"->"} {link.to} ({link.protocol})
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-white/52">No links</p>
-              )}
-            </div>
+          <div className="rounded-[1.1rem] border border-white/8 bg-white/[0.03] p-3">
+            <p className="text-[9px] uppercase tracking-[0.22em] text-white/35">Endpoints</p>
+            <p className="mt-2 text-sm text-white/88">{selectedHosts.length}</p>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-white/45">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-2.5 py-1">
-            <Network className="h-3 w-3" /> Reverse Proxy
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-2.5 py-1">
-            <KeyRound className="h-3 w-3" /> Forward Auth
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-2.5 py-1">
-            <HardDrive className="h-3 w-3" /> Shared Storage
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-2.5 py-1">
-            <Bot className="h-3 w-3" /> GPU AI
-          </span>
+        <p className="mt-5 text-sm leading-7 text-white/62">{activeNode.description}</p>
+
+        <div className="mt-5 rounded-[1.35rem] border border-white/8 bg-white/[0.03] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">
+            Connected Components
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {connectedNodes.length ? (
+              connectedNodes.map((node) => (
+                <button
+                  key={node.id}
+                  type="button"
+                  onClick={() => setActiveNodeId(node.id)}
+                  className="rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[11px] text-white/70 transition-colors hover:border-white/20 hover:text-white"
+                >
+                  {node.label}
+                </button>
+              ))
+            ) : (
+              <span className="text-xs text-white/45">No direct dependencies</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[1.35rem] border border-white/8 bg-white/[0.03] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Endpoints</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedHosts.length ? (
+              selectedHosts.map((host) => (
+                <a
+                  key={host}
+                  href={`https://${host}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full border border-white/10 bg-black/70 px-3 py-1.5 font-mono text-[11px] text-white/72 transition-colors hover:border-white/20 hover:text-white"
+                >
+                  {host}
+                </a>
+              ))
+            ) : (
+              <span className="text-xs text-white/45">No public endpoint</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[1.35rem] border border-white/8 bg-white/[0.03] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Routing Notes</p>
+          <ul className="mt-3 space-y-2">
+            {(activeNode.routes?.length ? activeNode.routes : ["No custom route directives"])
+              .slice(0, 4)
+              .map((route) => (
+                <li key={route} className="flex items-start gap-2 text-xs leading-6 text-white/62">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/35" />
+                  <span>{route}</span>
+                </li>
+              ))}
+          </ul>
+        </div>
+
+        <div className="mt-4 rounded-[1.35rem] border border-white/8 bg-white/[0.03] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Direct Flows</p>
+          <div className="mt-3 space-y-2">
+            {relatedLinks.length ? (
+              relatedLinks.map((link) => {
+                const from = nodeById.get(link.from)?.label ?? link.from;
+                const to = nodeById.get(link.to)?.label ?? link.to;
+
+                return (
+                  <div
+                    key={link.id}
+                    className="rounded-[1rem] border border-white/8 bg-black/55 px-3 py-2.5"
+                  >
+                    <p className="text-sm text-white/86">{link.label}</p>
+                    <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/35">
+                      {from} {"->"} {to} / {link.protocol}
+                    </p>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-white/45">No direct flows</p>
+            )}
+          </div>
         </div>
       </motion.aside>
     </div>
