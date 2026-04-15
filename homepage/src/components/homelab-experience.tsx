@@ -10,7 +10,6 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   Bot,
@@ -30,7 +29,6 @@ import { ArchitectureMap } from "@/components/architecture-map";
 import type { CheckedService, Overview } from "@/lib/overview";
 import { cn } from "@/lib/utils";
 import { Spotlight } from "@/components/ui/spotlight-new";
-import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -123,12 +121,35 @@ function formatThroughput(bytesPerSecond: number | null) {
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
 }
 
+function formatEndpointStatus(service: CheckedService) {
+  if (service.statusCode !== null) {
+    return `HTTP ${service.statusCode}`;
+  }
+
+  if (service.error) {
+    return service.error;
+  }
+
+  return "No response";
+}
+
+function getAccessTone(access: string) {
+  switch (access) {
+    case "Public":
+      return "border-emerald-300/20 bg-emerald-500/10 text-emerald-200";
+    case "Admin":
+      return "border-amber-300/20 bg-amber-500/10 text-amber-200";
+    default:
+      return "border-sky-300/20 bg-sky-500/10 text-sky-200";
+  }
+}
+
 function StatusPill({ active, error }: { active: boolean; error: string | null }) {
   if (error) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-300/35 bg-rose-500/10 px-2 py-0.5 text-[10px] text-rose-200">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-300/35 bg-rose-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-rose-200">
         <span className="h-1.5 w-1.5 rounded-full bg-rose-300" />
-        Error
+        Down
       </span>
     );
   }
@@ -136,7 +157,7 @@ function StatusPill({ active, error }: { active: boolean; error: string | null }
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px]",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em]",
         active
           ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-200"
           : "border-zinc-300/35 bg-zinc-500/10 text-zinc-200",
@@ -148,58 +169,75 @@ function StatusPill({ active, error }: { active: boolean; error: string | null }
   );
 }
 
-function ServiceCard({ service }: { service: CheckedService }) {
+function EndpointRow({
+  service,
+  isLast,
+}: {
+  service: CheckedService;
+  isLast: boolean;
+}) {
   return (
-    <CardContainer containerClassName="w-full h-full py-0" className="w-full h-full">
-      <CardBody className="group relative rounded-2xl border border-white/5 bg-black p-5 md:p-6 w-full h-auto min-h-[190px] shadow-[0_4px_20px_rgb(0,0,0,0.5)] transition-shadow hover:shadow-[0_8px_30px_rgb(255,255,255,0.06)] hover:border-white/15">
-        <CardItem
-          translateZ="30"
-          className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        >
-          <div />
-        </CardItem>
+    <a
+      href={service.url}
+      target="_blank"
+      rel="noreferrer"
+      className="endpoint-row group relative grid gap-3 px-4 py-4 pl-10 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-5 md:pl-12"
+    >
+      <span
+        className={cn(
+          "pointer-events-none absolute left-4 top-[1.45rem] h-3 w-3 rounded-full border shadow-[0_0_0_6px_rgba(255,255,255,0.03)] md:left-5",
+          service.active
+            ? "border-emerald-300/70 bg-emerald-300"
+            : "border-rose-300/60 bg-rose-300",
+        )}
+      />
+      {!isLast ? (
+        <span
+          className={cn(
+            "pointer-events-none absolute bottom-[-0.8rem] left-[21px] top-7 w-px md:left-6",
+            service.active
+              ? "bg-gradient-to-b from-emerald-300/35 via-white/8 to-transparent"
+              : "bg-gradient-to-b from-rose-300/25 via-white/8 to-transparent",
+          )}
+        />
+      ) : null}
 
-        <div className="relative space-y-5">
-          <CardItem translateZ="40" className="flex items-start justify-between gap-3 w-full">
-            <div>
-              <h4 className="text-lg font-light tracking-wide text-white">{service.name}</h4>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-white/40 font-light">{service.description}</p>
-            </div>
-            <div className="mt-1">
-              <StatusPill active={service.active} error={service.error} />
-            </div>
-          </CardItem>
-
-          <CardItem translateZ="50" className="rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5">
-            <p className="truncate font-mono text-xs tracking-wider text-white/50">{service.host}</p>
-          </CardItem>
-
-          <CardItem translateZ="60" className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">Access</p>
-              <p className="text-sm font-medium text-white/80">{service.access}</p>
-            </div>
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">Latency</p>
-              <p className="text-sm font-medium text-white/80">
-                {service.statusCode ? `${service.responseTimeMs}ms` : "--"}
-              </p>
-            </div>
-          </CardItem>
-
-          <CardItem translateZ="70" className="pt-2 inline-block w-full text-right">
-            <a
-              href={service.url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-end gap-2 text-[13px] font-medium text-white/40 transition-colors hover:text-white"
-            >
-              Open Endpoint <ArrowRight className="h-4 w-4" />
-            </a>
-          </CardItem>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h4 className="text-base font-light tracking-[0.01em] text-white/92">{service.name}</h4>
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em]",
+              getAccessTone(service.access),
+            )}
+          >
+            {service.access}
+          </span>
+          {service.dynamic ? (
+            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-white/45">
+              Dynamic
+            </span>
+          ) : null}
         </div>
-      </CardBody>
-    </CardContainer>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/52">{service.description}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] uppercase tracking-[0.18em] text-white/35">
+          <span className="font-mono normal-case tracking-[0.08em] text-white/42">{service.host}</span>
+          <span className="hidden sm:inline text-white/15">/</span>
+          <span>{formatEndpointStatus(service)}</span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 md:justify-end">
+        <span className="inline-flex items-center rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+          {service.statusCode !== null ? `${service.responseTimeMs}ms` : "n/a"}
+        </span>
+        <StatusPill active={service.active} error={service.error} />
+        <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-white/35 transition-colors group-hover:text-white/70">
+          Open
+          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+        </span>
+      </div>
+    </a>
   );
 }
 
@@ -501,39 +539,51 @@ export function HomelabExperience({
           <p className="section-eyebrow">Services</p>
           <h2 className="section-title">Published endpoints.</h2>
 
-          <div className="mt-8 space-y-10">
+          <div className="mt-10 space-y-5">
             {servicesBySection.map(([section, services]) => {
               const meta = SECTION_META[section] ?? SECTION_META.Lab;
               const Icon = meta.icon;
               const onlineCount = services.filter((service) => service.active).length;
 
               return (
-                <section key={section} className="surface-panel rounded-[2rem] p-6 md:p-10 border border-white/5 bg-black/40">
-                  <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+                <section key={section} className="endpoint-cluster relative overflow-hidden p-5 md:p-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8">
+                  <div className={cn("pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-br opacity-80", meta.tone)} />
+
+                  <div className="relative lg:pr-2">
                     <div>
                       <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-white/40">
                         <Icon className="h-4 w-4" />
                         {meta.title}
                       </div>
-                      <h3 className="mt-3 text-3xl font-light tracking-wide text-white">{section}</h3>
-                      <p className="mt-2 text-base text-white/50 font-light">{meta.description}</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3 text-right min-w-[120px]">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Health</p>
-                      <p className="mt-1 text-base font-light text-white">
-                        {onlineCount} / {services.length} <span className="text-white/40 text-sm">online</span>
+                      <h3 className="mt-4 text-2xl font-light tracking-wide text-white md:text-3xl">{section}</h3>
+                      <p className="mt-2 max-w-xs text-sm leading-relaxed text-white/50 font-light md:text-[15px]">
+                        {meta.description}
                       </p>
                     </div>
+
+                    <div className="mt-5 flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.2em] text-white/40">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                        {onlineCount} live
+                      </span>
+                      <span className="h-1 w-1 rounded-full bg-white/20" />
+                      <span>{services.length} routes</span>
+                    </div>
+
+                    <div className={cn("mt-6 hidden h-px w-28 bg-gradient-to-r lg:block", meta.tone)} />
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {services.map((service) => (
-                      <ServiceCard key={service.id} service={service} />
-                    ))}
+                  <div className="relative mt-6 lg:mt-0">
+                    <div className="endpoint-board">
+                      {services.map((service, index) => (
+                        <EndpointRow
+                          key={service.id}
+                          service={service}
+                          isLast={index === services.length - 1}
+                        />
+                      ))}
+                    </div>
                   </div>
-
-                  <div className={cn("pointer-events-none mt-8 h-[1px] w-full bg-gradient-to-r", meta.tone)} />
                 </section>
               );
             })}
