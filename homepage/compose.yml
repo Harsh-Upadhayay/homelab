@@ -1,7 +1,6 @@
 services:
   homepage:
-    build:
-      context: .
+    image: ${HOMEPAGE_IMAGE}:${HOMEPAGE_TAG}
     container_name: homepage
     restart: unless-stopped
     env_file:
