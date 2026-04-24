@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rendercv/rendercv/refs/tags/v2.8/schema.json
+cv:
+  name: Your Name
+  headline: Senior Software Engineer
+  location: City, Country
+  email: you@example.com
+  website: https://linkedin.com/in/your-handle
+  social_networks:
+    - network: LinkedIn
+      username: your-handle
+    - network: GitHub
+      username: your-github
+  sections:
+    experience:
+      - company: Example Corp
+        position: Senior Software Engineer
+        start_date: 2022-01
+        end_date: present
+        location: Remote
+        highlights:
+          - Replace this with your actual quantified impact.
+      - company: Previous Corp
+        position: Software Engineer
+        start_date: 2019-01
+        end_date: 2021-12
+        location: City, Country
+        highlights:
+          - Replace this with your actual work history.
+    skills:
+      - label: Languages
+        details: Python, TypeScript, Go
+      - label: Platforms
+        details: AWS, Docker, Kubernetes
+design:
+  theme: classic

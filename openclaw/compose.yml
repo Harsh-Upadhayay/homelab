@@ -1,3 +1,18 @@
+x-openclaw-env: &openclaw-env
+  HOME: /home/node
+  TERM: xterm-256color
+  TZ: ${TZ:-UTC}
+  OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  CAREERFLOW_API_URL: ${CAREERFLOW_API_URL}
+  BOOTSTRAP_OPENCLAW_HOME: /home/node/.openclaw
+  BOOTSTRAP_OPENCLAW_WORKSPACE: /home/node/.openclaw/workspace
+  BOOTSTRAP_OPENCLAW_SKILLS_SRC_DIR: /opt/openclaw-careerflow-skills
+  BOOTSTRAP_OPENCLAW_BATCH_BASE_FILE: /opt/openclaw/config/batch/base.json
+
 services:
   openclaw-init:
     image: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
@@ -8,19 +23,21 @@ services:
     env_file:
       - ../ops/.env.local
       - ./app.env
+    environment:
+      <<: *openclaw-env
     entrypoint:
       - /bin/sh
-      - -lc
-      - |
-        mkdir -p /home/node/.openclaw /home/node/.openclaw/workspace
-        chown -R 1000:1000 /home/node/.openclaw
+      - /opt/openclaw/scripts/init-workspace.sh
     volumes:
       - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ./skills-src:/opt/openclaw-careerflow-skills:ro
+      - ./scripts:/opt/openclaw/scripts:ro
 
-  openclaw-gateway:
-    image: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
-    container_name: openclaw-gateway
+  openclaw-skill-sync:
+    image: alpine:3.20
+    container_name: openclaw-skill-sync
+    user: "0:0"
     restart: unless-stopped
     init: true
     depends_on:
@@ -30,29 +47,95 @@ services:
       - ../ops/.env.local
       - ./app.env
     environment:
-      HOME: /home/node
-      TERM: xterm-256color
-      TZ: ${TZ:-UTC}
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-}
-      OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH: ${OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH:-false}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      BOOTSTRAP_OPENCLAW_WORKSPACE: /workspace
+      BOOTSTRAP_OPENCLAW_SKILLS_SRC_DIR: /skills-src
     command:
       - /bin/sh
-      - -lc
-      - |
-        mkdir -p /home/node/.openclaw /home/node/.openclaw/workspace
-        if [ "${OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH}" = "true" ]; then
-          OPENCLAW_CONTROL_UI_EXTRA=',{"path":"gateway.controlUi.dangerouslyDisableDeviceAuth","value":true}'
-        else
-          OPENCLAW_CONTROL_UI_EXTRA=''
-        fi
-        node dist/index.js config set --batch-json "[{\"path\":\"gateway.mode\",\"value\":\"local\"},{\"path\":\"gateway.bind\",\"value\":\"${OPENCLAW_GATEWAY_BIND}\"},{\"path\":\"gateway.controlUi.allowedOrigins\",\"value\":[\"http://localhost:${OPENCLAW_GATEWAY_PORT}\",\"http://127.0.0.1:${OPENCLAW_GATEWAY_PORT}\",\"https://${OPENCLAW_HOST}\"]}$${OPENCLAW_CONTROL_UI_EXTRA}]" >/dev/null
-        exec node dist/index.js gateway --bind "${OPENCLAW_GATEWAY_BIND}" --port 18789
+      - /opt/openclaw/scripts/sync-skills.sh
+    volumes:
+      - ${OPENCLAW_WORKSPACE_DIR}:/workspace
+      - ./skills-src:/skills-src:ro
+      - ./scripts:/opt/openclaw/scripts:ro
+
+  openclaw-browser:
+    image: zenika/alpine-chrome:latest
+    container_name: openclaw-browser
+    restart: unless-stopped
+    init: true
+    command:
+      - --no-sandbox
+      - --disable-dev-shm-usage
+      - --remote-allow-origins=*
+      - --remote-debugging-port=${OPENCLAW_BROWSER_DEBUG_PORT}
+      - --remote-debugging-address=0.0.0.0
+      - about:blank
+    ports:
+      - "127.0.0.1:${OPENCLAW_BROWSER_HOST_DEBUG_PORT}:${OPENCLAW_BROWSER_DEBUG_PORT}"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:${OPENCLAW_BROWSER_DEBUG_PORT}/json/version >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    networks:
+      - traefik
+
+  openclaw-browser-proxy:
+    image: nginx:1.27-alpine
+    container_name: openclaw-browser-proxy
+    restart: unless-stopped
+    init: true
+    depends_on:
+      openclaw-browser:
+        condition: service_healthy
+    volumes:
+      - ./config/nginx/browser-cdp-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9223/json/version >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    networks:
+      - traefik
+
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    user: "0:0"
+    init: true
+    depends_on:
+      openclaw-init:
+        condition: service_completed_successfully
+      openclaw-browser:
+        condition: service_healthy
+      openclaw-browser-proxy:
+        condition: service_healthy
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      <<: *openclaw-env
+      OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH: ${OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH:-false}
+    command:
+      - /bin/sh
+      - /opt/openclaw/scripts/start-gateway.sh
     volumes:
       - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${HOMELAB_STORAGE_ROOT}/careerflow/data/artifacts:/home/node/.openclaw/workspace/careerflow-artifacts:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config:/opt/openclaw/config:ro
+      - ./scripts:/opt/openclaw/scripts:ro
     ports:
       - "127.0.0.1:${OPENCLAW_GATEWAY_PORT}:18789"
     healthcheck:
@@ -97,20 +180,15 @@ services:
       - ../ops/.env.local
       - ./app.env
     environment:
-      HOME: /home/node
-      TERM: xterm-256color
+      <<: *openclaw-env
       BROWSER: echo
-      TZ: ${TZ:-UTC}
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
     entrypoint:
       - node
       - dist/index.js
     volumes:
       - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${HOMELAB_STORAGE_ROOT}/careerflow/data/artifacts:/home/node/.openclaw/workspace/careerflow-artifacts:ro
     security_opt:
       - no-new-privileges:true
 

@@ -1,0 +1,51 @@
+[
+  {
+    "path": "gateway.mode",
+    "value": "local"
+  },
+  {
+    "path": "plugins.entries.browser.enabled",
+    "value": true
+  },
+  {
+    "path": "browser.enabled",
+    "value": true
+  },
+  {
+    "path": "browser.headless",
+    "value": true
+  },
+  {
+    "path": "browser.noSandbox",
+    "value": true
+  },
+  {
+    "path": "browser.ssrfPolicy.allowedHostnames",
+    "value": [
+      "openclaw-browser-proxy",
+      "openclaw-browser",
+      "127.0.0.1",
+      "localhost"
+    ]
+  },
+  {
+    "path": "agents.defaults.sandbox.browser.enabled",
+    "value": true
+  },
+  {
+    "path": "agents.defaults.sandbox.browser.autoStart",
+    "value": true
+  },
+  {
+    "path": "agents.defaults.workspace",
+    "value": "/home/node/.openclaw/workspace"
+  },
+  {
+    "path": "commands.text",
+    "value": true
+  },
+  {
+    "path": "commands.nativeSkills",
+    "value": "auto"
+  }
+]
