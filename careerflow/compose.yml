@@ -1,0 +1,37 @@
+services:
+  careerflow-api:
+    image: ${CAREERFLOW_IMAGE}:${CAREERFLOW_TAG}
+    container_name: careerflow-api
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      CAREERFLOW_DATA_DIR: /app/artifacts
+      CAREERFLOW_WORKSPACE_ARTIFACTS_PREFIX: ${CAREERFLOW_WORKSPACE_ARTIFACTS_PREFIX}
+    volumes:
+      - ${CAREERFLOW_DATA_DIR}/artifacts:/app/artifacts
+    ports:
+      - "127.0.0.1:${CAREERFLOW_API_PORT}:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  traefik:
+    external: true
