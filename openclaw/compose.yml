@@ -1,0 +1,119 @@
+services:
+  openclaw-init:
+    image: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
+    container_name: openclaw-init
+    user: "0:0"
+    restart: "no"
+    init: true
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - |
+        mkdir -p /home/node/.openclaw /home/node/.openclaw/workspace
+        chown -R 1000:1000 /home/node/.openclaw
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    init: true
+    depends_on:
+      openclaw-init:
+        condition: service_completed_successfully
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      TZ: ${TZ:-UTC}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-}
+      OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH: ${OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        mkdir -p /home/node/.openclaw /home/node/.openclaw/workspace
+        if [ "${OPENCLAW_CONTROL_UI_DISABLE_DEVICE_AUTH}" = "true" ]; then
+          OPENCLAW_CONTROL_UI_EXTRA=',{"path":"gateway.controlUi.dangerouslyDisableDeviceAuth","value":true}'
+        else
+          OPENCLAW_CONTROL_UI_EXTRA=''
+        fi
+        node dist/index.js config set --batch-json "[{\"path\":\"gateway.mode\",\"value\":\"local\"},{\"path\":\"gateway.bind\",\"value\":\"${OPENCLAW_GATEWAY_BIND}\"},{\"path\":\"gateway.controlUi.allowedOrigins\",\"value\":[\"http://localhost:${OPENCLAW_GATEWAY_PORT}\",\"http://127.0.0.1:${OPENCLAW_GATEWAY_PORT}\",\"https://${OPENCLAW_HOST}\"]}$${OPENCLAW_CONTROL_UI_EXTRA}]" >/dev/null
+        exec node dist/index.js gateway --bind "${OPENCLAW_GATEWAY_BIND}" --port 18789
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+    ports:
+      - "127.0.0.1:${OPENCLAW_GATEWAY_PORT}:18789"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.openclaw.rule=Host(`${OPENCLAW_HOST}`)
+      - traefik.http.routers.openclaw.entrypoints=websecure
+      - traefik.http.routers.openclaw.tls.certresolver=cloudflare
+      - traefik.http.routers.openclaw.middlewares=authelia-fa-openclaw,secure-headers@docker,errpages@docker
+      - traefik.http.services.openclaw.loadbalancer.server.port=18789
+
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
+    profiles:
+      - cli
+    network_mode: "service:openclaw-gateway"
+    depends_on:
+      - openclaw-gateway
+    init: true
+    stdin_open: true
+    tty: true
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      BROWSER: echo
+      TZ: ${TZ:-UTC}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+    entrypoint:
+      - node
+      - dist/index.js
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  traefik:
+    external: true
