@@ -33,6 +33,11 @@ session:
       default_redirection_url: 'https://{{mustEnv "OPENCLAW_HOST"}}/'
       name: "openclaw_sess"
       same_site: "lax"
+    - domain: {{mustEnv "OPENVSCODE_SERVER_HOST"}}
+      authelia_url: 'https://{{mustEnv "OPENVSCODE_SERVER_HOST"}}/authelia'
+      default_redirection_url: 'https://{{mustEnv "OPENVSCODE_SERVER_HOST"}}/'
+      name: "openvscode_sess"
+      same_site: "lax"
     - domain: {{mustEnv "NEXTCLOUD_HOST"}}              
       authelia_url: 'https://{{mustEnv "NEXTCLOUD_HOST"}}/authelia'
       default_redirection_url: 'https://{{mustEnv "NEXTCLOUD_HOST"}}/'
@@ -98,6 +103,10 @@ access_control:
     - domain: {{mustEnv "OPENCLAW_HOST"}}
       policy: one_factor
       subject: ["group:admin"]
+
+    - domain: {{mustEnv "OPENVSCODE_SERVER_HOST"}}
+      policy: two_factor
+      subject: ["group:openvscode-user", "group:admin"]
       
     - domain: "{{ mustEnv `PROWLARR_HOST` }}"
       policy: two_factor
