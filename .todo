@@ -17,3 +17,158 @@
 5. Add alerting and service-level probes: disk usage on `/storage`, VPN health, certificate expiry, container health, and external HTTP checks for your public entrypoints.
 6. Normalize env policy: move the Immich DB password out of git, switch hard-coded `/storage/...` paths to `${HOMELAB_STORAGE_ROOT}`, and audit anonymous Docker volumes such as Immich’s `/data`.
 
+# Homelab to Kubernetes Learning Migration Plan
+
+## Summary
+Convert this lab from Docker Compose to a single-node `k3s` cluster in phases, using `Helm + kubectl` and keeping the current host-mounted data layout for v1. The goal is to learn core Kubernetes operations without taking on unnecessary platform complexity up front.
+
+The migration should preserve your current architecture where possible:
+- `Traefik` remains the ingress controller.
+- Existing DNS and Cloudflare flows stay in place.
+- Service state continues to live under the current `/storage`-style host paths initially.
+- Stateful and GPU-heavy workloads move after the cluster base is stable.
+- A small set of awkward services may remain on Compose temporarily during the migration, but the intended end state is “almost everything on Kubernetes”.
+
+## Key Changes
+### 1. Build a minimal but real Kubernetes platform first
+Create a new `k8s/` area in the repo and organize it by layer:
+- `k8s/bootstrap`: cluster bootstrap notes/scripts for `k3s`, required host prep, NVIDIA runtime setup, and initial namespaces.
+- `k8s/platform`: shared platform components installed first.
+- `k8s/apps`: app-specific manifests or Helm values.
+
+Install and standardize these first:
+- `k3s` on the current single host.
+- `local-path` storage for PVC-backed workloads, plus direct hostPath only where a chart or workload truly needs fixed host directories.
+- `Traefik` as the cluster ingress controller.
+- `cert-manager` with Cloudflare DNS challenge for TLS.
+- `ExternalDNS` only if you want Kubernetes to own DNS records later; otherwise defer it and keep DNS manual as it is now.
+- `NVIDIA device plugin` only after the base cluster is healthy.
+
+Do not add Argo CD, Flux, Longhorn, service mesh, or distributed storage in v1.
+
+### 2. Re-express shared Compose patterns as Kubernetes primitives
+Translate the current Compose conventions into explicit Kubernetes patterns:
+- `ops/.env.local` secrets become Kubernetes `Secret` objects, ideally one secret set per app namespace.
+- Non-secret `app.env` settings become `ConfigMap` values or Helm chart values files.
+- Traefik label-based routing becomes `Ingress` or Traefik `IngressRoute` resources.
+- Bind mounts under `${HOMELAB_STORAGE_ROOT}` become PVCs backed by `local-path`, except where a workload truly requires a fixed host path.
+- Internal app-to-app Docker networks become namespace-local Services and DNS names.
+- Restart behavior, healthchecks, and dependency ordering become probes plus normal Kubernetes reconciliation.
+
+Keep one namespace per subsystem at first:
+- `ingress`
+- `auth`
+- `monitoring`
+- `media`
+- `apps`
+- `ai`
+
+### 3. Migrate in a learning-friendly order
+Use this sequence so each step teaches one Kubernetes concept without stacking too many risks.
+
+Phase 1: Platform and low-risk apps
+- Deploy `Traefik`, `cert-manager`, and secret management conventions.
+- Migrate `homepage` first.
+- Migrate `openvscode-server` and `openclaw` next if you want more practice with ingress, auth, and persistent config.
+- Keep Compose Traefik running until Kubernetes ingress is confirmed, then cut traffic one hostname at a time.
+
+Phase 2: Auth and observability
+- Migrate `Authelia` and `LLDAP`.
+- Recreate current per-host auth behavior using Kubernetes ingress middleware / forward-auth integration.
+- Migrate `Prometheus`, `Grafana`, and exporters.
+- Replace Docker-specific monitoring bits where needed:
+  - `node-exporter` remains straightforward.
+  - `cadvisor` may still work, but validate it under `k3s`.
+  - `dcgm-exporter` moves only after the GPU plugin is working.
+
+Phase 3: Simple stateful apps
+- Migrate `audiobookshelf`, `jenkins`, and similar apps with clear single-volume state.
+- Use PVCs for app state and preserve existing data directories during cutover.
+- Move one service at a time with backup, restore, smoke test, then DNS/ingress cutover.
+
+Phase 4: Heavier stateful apps
+- Migrate `Nextcloud` after you are comfortable with PVCs, probes, and backup/restore.
+- Split app, Postgres, and Redis cleanly into separate workloads.
+- Preserve large data directories on local storage.
+- Expect this to require the most validation around file ownership, trusted proxies, uploads, and maintenance jobs.
+
+Phase 5: GPU/media/AI workloads
+- Migrate `Ollama`, `Immich`, and `Jellyfin` after the NVIDIA device plugin is stable.
+- Keep GPU scheduling simple on one node using node labels and explicit resource requests.
+- Validate transcoding / CUDA behavior before removing Compose versions.
+- `Immich` should move only after both GPU and Postgres-on-Kubernetes patterns are familiar.
+
+Phase 6: Edge-case services
+- Leave `cloudflared` and VPN-tied media pieces like `gluetun + qbittorrent` for last.
+- These are the least educational early on and the most likely to fight Kubernetes abstractions.
+- If they work reliably on Compose, it is acceptable to keep them there until the rest of the lab is stable.
+
+### 4. Decide workload targets explicitly
+Target Kubernetes first:
+- `homepage`
+- `authelia`
+- `lldap`
+- `prometheus`
+- `grafana`
+- `node-exporter`
+- `audiobookshelf`
+- `jenkins`
+- `openvscode-server`
+- `openclaw`
+- `nextcloud`
+- `ollama`
+- `immich`
+- `jellyfin`
+- `sonarr/radarr/prowlarr/jellyseerr`
+
+Delay by design:
+- `cloudflared`
+- `gluetun`
+- `qbittorrent`
+
+These delayed services can move later, but they should not block the main learning path.
+
+## Public Interfaces / Repo Conventions
+Add these repo-level interfaces and keep them stable:
+- `k8s/platform/<component>/values.yaml` for Helm-managed shared services.
+- `k8s/apps/<app>/` for each migrated workload.
+- `k8s/secrets/README.md` describing how secrets are created, without storing secret values in Git.
+- A top-level migration document that maps each Compose stack to its Kubernetes replacement and current status.
+
+Adopt these manifest conventions:
+- One namespace per subsystem.
+- One values file per environment for Helm-managed services.
+- One Secret source per app, with secret names documented.
+- One ingress hostname per app matching the current public FQDNs.
+- One PVC per durable data boundary unless a chart already defines the right split.
+
+## Test Plan
+For each migration phase, require these checks before moving on:
+- `kubectl get pods -A` shows healthy readiness for the new phase.
+- Ingress hostname serves valid TLS and routes to the correct backend.
+- Auth-protected apps still enforce login and redirect correctly.
+- Persistent data survives pod restart and node reboot.
+- Logs and metrics remain visible in Prometheus/Grafana where applicable.
+- Existing data paths are backed up before the first stateful cutover.
+- Old Compose workload is stopped only after the Kubernetes version passes smoke tests.
+
+Service-specific acceptance checks:
+- `homepage`: loads over HTTPS through Kubernetes Traefik.
+- `Authelia`: login, callback, and protected-host flows work.
+- `Grafana`: dashboards and datasource provisioning still load.
+- `Nextcloud`: login, file upload, and background job behavior work.
+- `Immich`: upload, thumbnail generation, and ML/transcoding work.
+- `Ollama`: model pull/inference works and GPU is visible.
+- `Jellyfin`: media library mounts correctly and hardware transcoding works.
+
+## Assumptions and Defaults
+- Cluster distro: `k3s`.
+- Node shape: single node first, with a future path to multi-node later.
+- Management style: `Helm + kubectl`, not GitOps in v1.
+- Storage default: start with `local-path` and existing local disks; do not introduce Longhorn yet.
+- Ingress: keep `Traefik`.
+- TLS: use `cert-manager` with Cloudflare DNS challenge.
+- Secrets: move out of env files into Kubernetes Secrets at deployment time.
+- Migration style: phased, one subsystem at a time, with rollback points.
+- End state: move almost everything to Kubernetes, but do not force `cloudflared` or VPN-tied services early.
+- Data safety wins over purity: if a workload needs temporary hostPath or a delayed migration, take that path and document it.
