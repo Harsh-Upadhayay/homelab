@@ -16,7 +16,9 @@ server:
           - name: "CookieSession"
 
 session:
-  remember_me_duration: 1M
+  inactivity: 24h
+  expiration: 24h
+  remember_me: 1M
   cookies:
     - domain: {{mustEnv "AUDIOBOOKSHELF_HOST"}}
       authelia_url: 'https://{{mustEnv "AUDIOBOOKSHELF_HOST"}}/authelia'
@@ -177,6 +179,7 @@ identity_providers:
 
         scopes: [openid, profile, email, groups]
         authorization_policy: two_factor
+        consent_mode: implicit
         token_endpoint_auth_method: client_secret_post
         require_pkce: true
         pkce_challenge_method: S256
@@ -190,6 +193,7 @@ identity_providers:
           - https://{{ mustEnv "AUDIOBOOKSHELF_HOST" }}/auth/openid/mobile-redirect
         scopes: [openid, profile, email, groups]
         authorization_policy: two_factor
+        consent_mode: implicit
         token_endpoint_auth_method: client_secret_basic
         require_pkce: true
         pkce_challenge_method: S256
@@ -207,6 +211,7 @@ identity_providers:
         redirect_uris:
           - "https://{{ mustEnv `GRAFANA_HOST` }}/login/generic_oauth"
         scopes: [openid, profile, email, groups]
+        consent_mode: implicit
         response_types: [code]
         grant_types: [authorization_code]
         token_endpoint_auth_method: client_secret_basic
@@ -229,6 +234,7 @@ identity_providers:
           - 'profile'
           - 'email'
           - 'immich_scope'
+        consent_mode: implicit
         claims_policy: 'immich_policy'
         response_types: ['code']
         grant_types: ['authorization_code']
