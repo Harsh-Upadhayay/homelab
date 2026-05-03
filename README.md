@@ -17,7 +17,6 @@ make env-check
 ## common commands
 ```bash
 make up-all           # start everything
-make up-jobflow       # start OpenClaw plus the careerflow helper service
 make down-all         # stop everything
 make status           # ps across stacks
 make pull-all         # pull all images
@@ -25,7 +24,7 @@ make logs-all         # recent logs (non-follow)
 ```
 
 ## per-app
-Use any of: `traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openclaw openvscode-server jenkins homepage cloudflared`
+Use any of: `traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openvscode-server jenkins homepage cloudflared`
 
 ```bash
 make up-traefik

@@ -10,7 +10,6 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
       CAREERFLOW_DATA_DIR: /app/artifacts
-      CAREERFLOW_WORKSPACE_ARTIFACTS_PREFIX: ${CAREERFLOW_WORKSPACE_ARTIFACTS_PREFIX}
     volumes:
       - ${CAREERFLOW_DATA_DIR}/artifacts:/app/artifacts
     ports:

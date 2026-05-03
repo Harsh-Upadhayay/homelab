@@ -39,7 +39,6 @@ services:
       - traefik.http.services.authelia.loadbalancer.server.port=9091
       - traefik.http.services.authelia-abs.loadbalancer.server.port=9091
       - traefik.http.services.authelia-ollama.loadbalancer.server.port=9091
-      - traefik.http.services.authelia-openclaw.loadbalancer.server.port=9091
       - traefik.http.services.authelia-openvscode-server.loadbalancer.server.port=9091
 
       # ---------- AUTH_HOST (serve whole host) ----------
@@ -62,13 +61,6 @@ services:
       - traefik.http.routers.authelia-ollama.tls.certresolver=cloudflare
       - traefik.http.routers.authelia-ollama.middlewares=authelia-add-slash,secure-headers@docker,errpages@docker
       - traefik.http.routers.authelia-ollama.service=authelia-ollama
-
-      # ---------- OPENCLAW_HOST under /authelia ----------
-      - traefik.http.routers.authelia-openclaw.rule=Host(`${OPENCLAW_HOST}`) && PathPrefix(`/authelia`)
-      - traefik.http.routers.authelia-openclaw.entrypoints=websecure
-      - traefik.http.routers.authelia-openclaw.tls.certresolver=cloudflare
-      - traefik.http.routers.authelia-openclaw.middlewares=authelia-add-slash,secure-headers@docker,errpages@docker
-      - traefik.http.routers.authelia-openclaw.service=authelia-openclaw
 
       # ---------- OPENVSCODE_SERVER_HOST under /authelia ----------
       - traefik.http.routers.authelia-openvscode-server.rule=Host(`${OPENVSCODE_SERVER_HOST}`) && PathPrefix(`/authelia`)

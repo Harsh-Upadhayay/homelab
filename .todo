@@ -69,7 +69,7 @@ Use this sequence so each step teaches one Kubernetes concept without stacking t
 Phase 1: Platform and low-risk apps
 - Deploy `Traefik`, `cert-manager`, and secret management conventions.
 - Migrate `homepage` first.
-- Migrate `openvscode-server` and `openclaw` next if you want more practice with ingress, auth, and persistent config.
+- Migrate `openvscode-server` next if you want more practice with ingress, auth, and persistent config.
 - Keep Compose Traefik running until Kubernetes ingress is confirmed, then cut traffic one hostname at a time.
 
 Phase 2: Auth and observability
@@ -114,7 +114,6 @@ Target Kubernetes first:
 - `audiobookshelf`
 - `jenkins`
 - `openvscode-server`
-- `openclaw`
 - `nextcloud`
 - `ollama`
 - `immich`

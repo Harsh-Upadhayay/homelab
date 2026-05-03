@@ -1,6 +1,6 @@
 # ---------- settings ----------
 OPS_ENV ?= ops/.env.local
-APPS := traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openclaw openvscode-server jenkins homepage cloudflared
+APPS := traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openvscode-server jenkins homepage cloudflared
 
 # Use bash so 'set -e' works reliably within loops
 SHELL := /bin/bash
@@ -24,7 +24,6 @@ help: ## show commands
 	echo ""; \
 	echo "common:"; \
 	echo "  make up-all            # start all stacks"; \
-	echo "  make up-jobflow        # start the careerflow helper, sync OpenClaw skills, start OpenClaw"; \
 	echo "  make down-all          # stop all stacks"; \
 	echo "  make restart-all       # 'docker compose restart' for all"; \
 	echo "  make bounce-all        # stop then start all (hard restart)"; \
@@ -111,21 +110,6 @@ status: env-check ## ps for all
 		echo "==> $$a"; \
 		( cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env ps ); \
 	done
-
-up-jobflow: env-check ## start careerflow and OpenClaw workflow services
-	@$(MAKE) up-careerflow
-	@$(MAKE) up-openclaw
-
-restart-jobflow: env-check ## restart careerflow and OpenClaw workflow services
-	@$(MAKE) restart-careerflow
-	@$(MAKE) restart-openclaw
-
-logs-jobflow: env-check ## follow careerflow and OpenClaw logs
-	@$(MAKE) logs-careerflow & $(MAKE) logs-openclaw & wait
-
-ps-jobflow: env-check ## status for careerflow and OpenClaw
-	@$(MAKE) ps-careerflow
-	@$(MAKE) ps-openclaw
 
 # ---------- per app patterns ----------
 
