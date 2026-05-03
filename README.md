@@ -20,11 +20,12 @@ make up-all           # start everything
 make down-all         # stop everything
 make status           # ps across stacks
 make pull-all         # pull all images
+make build-all        # build images for stacks that define builds
 make logs-all         # recent logs (non-follow)
 ```
 
 ## per-app
-Use any of: `traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openvscode-server jenkins homepage cloudflared`
+Use any of: `traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openvscode-server jenkins homepage cloudflared openclaw`
 
 ```bash
 make up-traefik
@@ -32,6 +33,7 @@ make logs-nextcloud
 make restart-authelia
 make ps-jenkins
 make pull-monitoring
+make build-openclaw
 make config-traefik
 make debug-ollama             # foreground, exits when a container exits
 make exec-nextcloud SERVICE=nextcloud SH=/bin/bash

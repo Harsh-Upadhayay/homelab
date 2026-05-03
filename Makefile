@@ -1,6 +1,6 @@
 # ---------- settings ----------
 OPS_ENV ?= ops/.env.local
-APPS := traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openvscode-server jenkins homepage cloudflared
+APPS := traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openvscode-server jenkins homepage cloudflared openclaw
 
 # Use bash so 'set -e' works reliably within loops
 SHELL := /bin/bash
@@ -30,6 +30,7 @@ help: ## show commands
 	echo "  make stop-all          # stop all (containers remain)"; \
 	echo "  make start-all         # start all (containers exist)"; \
 	echo "  make pull-all          # pull images for all stacks"; \
+	echo "  make build-all         # build images for stacks that define builds"; \
 	echo "  make logs-all          # show recent logs (non-follow)"; \
 	echo "  make status            # ps for all stacks"; \
 	echo ""; \
@@ -43,6 +44,7 @@ help: ## show commands
 	echo "  make logs-<app>        # follow logs (optionally: SRV=web)"; \
 	echo "  make ps-<app>          # status"; \
 	echo "  make pull-<app>        # pull images"; \
+	echo "  make build-<app>       # build images"; \
 	echo "  make config-<app>      # rendered compose config"; \
 	echo "  make debug-<app>       # foreground mode, aborts on container exit (optionally: SRV=web)"; \
 	echo "  make exec-<app> SERVICE=name SH=/bin/sh  # shell into a service"; \
@@ -99,6 +101,12 @@ pull-all: env-check ## pull images for all
 		( cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env pull ); \
 	done
 
+build-all: env-check ## build images for all
+	@set -e; for a in $(APPS); do \
+		echo "==> $$a"; \
+		( cd $$a && docker compose --env-file ../$(OPS_ENV) --env-file ./app.env build ); \
+	done
+
 logs-all: env-check ## recent logs (non-follow)
 	@set -e; for a in $(APPS); do \
 		echo "==> $$a"; \
@@ -140,6 +148,9 @@ ps-%: env-check ## status for one app
 
 pull-%: env-check ## pull images for one app
 	$(call compose,$*,pull)
+
+build-%: env-check ## build images for one app
+	$(call compose,$*,build)
 
 config-%: env-check ## show rendered config
 	$(call compose,$*,config)

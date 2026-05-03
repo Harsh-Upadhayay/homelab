@@ -1,0 +1,149 @@
+services:
+  openclaw-permissions:
+    image: alpine:3.22
+    container_name: openclaw-permissions
+    restart: "no"
+    command: ["sh", "-c", "mkdir -p /config /workspace && chown -R 1000:1000 /config /workspace"]
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/config
+      - ${OPENCLAW_WORKSPACE_DIR}:/workspace
+    security_opt:
+      - no-new-privileges:true
+
+  openclaw-gateway:
+    image: ${OPENCLAW_LOCAL_IMAGE}:${OPENCLAW_TAG}
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    init: true
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      TZ: ${TZ:-UTC}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: ${OPENCLAW_ALLOW_INSECURE_PRIVATE_WS:-}
+      OPENCLAW_DISABLE_BONJOUR: ${OPENCLAW_DISABLE_BONJOUR}
+      OPENCLAW_GATEWAY_BIND: ${OPENCLAW_GATEWAY_BIND}
+      OPENCLAW_HOST: ${OPENCLAW_HOST}
+      OPENCLAW_BOOTSTRAP_BROWSER_CONFIG: ${OPENCLAW_BOOTSTRAP_BROWSER_CONFIG}
+      OPENCLAW_BROWSER_DISPLAY_MODE: ${OPENCLAW_BROWSER_DISPLAY_MODE}
+      OPENCLAW_BROWSER_DISPLAY: ${OPENCLAW_BROWSER_DISPLAY}
+      OPENCLAW_XVFB_SCREEN: ${OPENCLAW_XVFB_SCREEN}
+      OPENCLAW_BROWSER_HEADLESS: ${OPENCLAW_BROWSER_HEADLESS}
+      PLAYWRIGHT_BROWSERS_PATH: ${PLAYWRIGHT_BROWSERS_PATH}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    volumes:
+      # OpenClaw stores openclaw.json, provider auth, plugins, browser profile
+      # state, and the env-backed gateway token under /home/node/.openclaw.
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - traefik
+    ports:
+      - 127.0.0.1:${OPENCLAW_GATEWAY_PORT}:18789
+      - 127.0.0.1:${OPENCLAW_BRIDGE_PORT}:18790
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      openclaw-permissions:
+        condition: service_completed_successfully
+    command: ["/usr/local/bin/openclaw-start-gateway"]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.openclaw.rule=Host(`${OPENCLAW_HOST}`)
+      - traefik.http.routers.openclaw.entrypoints=websecure
+      - traefik.http.routers.openclaw.tls.certresolver=cloudflare
+      - traefik.http.routers.openclaw.middlewares=authelia-fa-openclaw,secure-headers@docker,errpages@docker
+      - traefik.http.services.openclaw.loadbalancer.server.port=18789
+
+  openclaw-cli:
+    image: ${OPENCLAW_LOCAL_IMAGE}:${OPENCLAW_TAG}
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
+    profiles: ["cli"]
+    network_mode: service:openclaw-gateway
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      TZ: ${TZ:-UTC}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: ${OPENCLAW_ALLOW_INSECURE_PRIVATE_WS:-}
+      BROWSER: echo
+      PLAYWRIGHT_BROWSERS_PATH: ${PLAYWRIGHT_BROWSERS_PATH}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+    stdin_open: true
+    tty: true
+    init: true
+    entrypoint: ["node", "dist/index.js"]
+    depends_on:
+      - openclaw-gateway
+
+  openclaw-configure-browser:
+    image: ${OPENCLAW_LOCAL_IMAGE}:${OPENCLAW_TAG}
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE}:${OPENCLAW_TAG}
+    profiles: ["setup"]
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+    depends_on:
+      openclaw-permissions:
+        condition: service_completed_successfully
+    entrypoint: ["node", "dist/index.js"]
+    command:
+      - config
+      - set
+      - --batch-json
+      - >-
+        [
+          {"path":"gateway.mode","value":"local"},
+          {"path":"gateway.bind","value":"lan"},
+          {"path":"gateway.controlUi.allowedOrigins","value":["http://localhost:18789","http://127.0.0.1:18789","https://${OPENCLAW_HOST}"]},
+          {"path":"browser.enabled","value":true},
+          {"path":"browser.defaultProfile","value":"openclaw"},
+          {"path":"browser.headless","value":false},
+          {"path":"browser.noSandbox","value":true},
+          {"path":"browser.executablePath","value":"/usr/bin/chromium"}
+        ]
+
+networks:
+  traefik:
+    external: true
