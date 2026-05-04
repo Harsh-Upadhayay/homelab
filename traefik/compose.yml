@@ -80,6 +80,7 @@ services:
   errorpages:
     image: nginx:alpine
     container_name: traefik-errorpages
+    restart: unless-stopped
     volumes:
       - ./errorpages:/usr/share/nginx/html:ro
     networks:
