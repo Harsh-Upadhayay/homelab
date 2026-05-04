@@ -4,6 +4,7 @@ set -eu
 display_mode="${OPENCLAW_BROWSER_DISPLAY_MODE:-xvfb}"
 display_value="${OPENCLAW_BROWSER_DISPLAY:-${DISPLAY:-:99}}"
 xvfb_pid=""
+gateway_pid=""
 
 bootstrap_browser_config() {
   config_file="${OPENCLAW_CONFIG_PATH:-${HOME:-/home/node}/.openclaw/openclaw.json}"
@@ -36,8 +37,31 @@ bootstrap_browser_config() {
 start_xvfb() {
   export DISPLAY="${display_value}"
   screen="${OPENCLAW_XVFB_SCREEN:-1920x1080x24}"
+
+  display_number="${DISPLAY#:}"
+  display_number="${display_number%%.*}"
+  lock_file="/tmp/.X${display_number}-lock"
+  socket_file="/tmp/.X11-unix/X${display_number}"
+
+  if [ -f "${lock_file}" ]; then
+    lock_pid="$(tr -d ' ' < "${lock_file}" 2>/dev/null || true)"
+    if [ -n "${lock_pid}" ] && kill -0 "${lock_pid}" 2>/dev/null; then
+      echo "Xvfb display ${DISPLAY} is already active; reusing it"
+      return
+    fi
+
+    echo "Removing stale Xvfb lock for display ${DISPLAY}"
+    rm -f "${lock_file}" "${socket_file}"
+  fi
+
   Xvfb "${DISPLAY}" -screen 0 "${screen}" -nolisten tcp &
   xvfb_pid="$!"
+  sleep 1
+  if ! kill -0 "${xvfb_pid}" 2>/dev/null; then
+    echo "Xvfb failed to start on display ${DISPLAY}" >&2
+    wait "${xvfb_pid}" 2>/dev/null || true
+    exit 1
+  fi
 }
 
 case "${display_mode}" in
@@ -66,10 +90,24 @@ esac
 bootstrap_browser_config
 
 cleanup() {
+  if [ -n "${gateway_pid}" ]; then
+    kill "${gateway_pid}" 2>/dev/null || true
+  fi
+
   if [ -n "${xvfb_pid}" ]; then
     kill "${xvfb_pid}" 2>/dev/null || true
+    wait "${xvfb_pid}" 2>/dev/null || true
   fi
 }
-trap cleanup INT TERM EXIT
+trap 'cleanup; exit 143' INT TERM
 
-exec node dist/index.js gateway --bind "${OPENCLAW_GATEWAY_BIND:-lan}" --port 18789
+node dist/index.js gateway --bind "${OPENCLAW_GATEWAY_BIND:-lan}" --port 18789 &
+gateway_pid="$!"
+
+set +e
+wait "${gateway_pid}"
+status="$?"
+set -e
+gateway_pid=""
+cleanup
+exit "${status}"
