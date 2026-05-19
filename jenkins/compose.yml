@@ -8,11 +8,14 @@ services:
       - ../ops/.env.local
       - ./app.env
     environment:
-      DOCKER_HOST: tcp://dind:2375
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
       TZ: Asia/Tokyo
     volumes:
       # Jenkins controller state lives under /var/jenkins_home.
       - ${JENKINS_HOME_LOCATION}:/var/jenkins_home
+      - jenkins_docker_certs:/certs/client:ro
     depends_on:
       - dind
     networks:
@@ -25,7 +28,13 @@ services:
       - traefik.http.routers.jenkins.rule=Host(`${JENKINS_HOST}`)
       - traefik.http.routers.jenkins.entrypoints=websecure
       - traefik.http.routers.jenkins.tls.certresolver=cloudflare
-      - traefik.http.routers.jenkins.middlewares=secure-headers@docker
+      - traefik.http.routers.jenkins.middlewares=authelia-fa-jenkins@docker,secure-headers@docker
+      - traefik.http.routers.jenkins-webhook.rule=Host(`${JENKINS_HOST}`) && PathPrefix(`/github-webhook`)
+      - traefik.http.routers.jenkins-webhook.entrypoints=websecure
+      - traefik.http.routers.jenkins-webhook.tls.certresolver=cloudflare
+      - traefik.http.routers.jenkins-webhook.priority=100
+      - traefik.http.routers.jenkins-webhook.service=jenkins
+      - traefik.http.routers.jenkins-webhook.middlewares=secure-headers@docker
 
   dind:
     image: ${JENKINS_DIND_IMAGE}:${JENKINS_DIND_TAG}
@@ -36,27 +45,20 @@ services:
       - ../ops/.env.local
       - ./app.env
     environment:
-      DOCKER_TLS_CERTDIR: ""
-    command: ["dockerd", "--host=tcp://0.0.0.0:2375", "--tls=false"]
+      DOCKER_TLS_CERTDIR: /certs
+    command: ["--storage-driver", "overlay2"]
+    volumes:
+      - jenkins_docker_certs:/certs/client
+      - ${JENKINS_HOME_LOCATION}:/var/jenkins_home
     networks:
-      - jenkins_net
-
-  dind-cleaner:
-    image: ${JENKINS_DOCKERCLI_IMAGE}:${JENKINS_DOCKERCLI_TAG}
-    container_name: dind-cleaner
-    restart: unless-stopped
-    entrypoint: >
-      sh -c "while true; do
-        echo '[CLEANER] Running Docker cleanup...';
-        docker --host tcp://dind:2375 system prune -af --volumes;
-        sleep 21600;
-      done"
-    networks:
-      - jenkins_net
-    depends_on:
-      - dind
+      jenkins_net:
+        aliases:
+          - docker
 
 networks:
   traefik:
     external: true
   jenkins_net:
+
+volumes:
+  jenkins_docker_certs:
