@@ -1,6 +1,6 @@
 # ---------- settings ----------
 OPS_ENV ?= ops/.env.local
-APPS := traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama careerflow openvscode-server jenkins homepage cloudflared openclaw
+APPS := traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama watchtower jobhunt openvscode-server jenkins homepage cloudflared openclaw
 
 # Use bash so 'set -e' works reliably within loops
 SHELL := /bin/bash

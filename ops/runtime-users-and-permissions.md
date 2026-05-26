@@ -37,6 +37,7 @@ This document describes the current runtime user model and the `/storage` permis
 | `jellyfin` | image default | configured with `PUID=1000`, `PGID=1000` | LinuxServer image; `/cache` remains disposable. |
 | `ollama` | image default | `root` | Left root because the current official layout stores state under `/root/.ollama`. |
 | `traefik` | image default | `root` | Left root because of the current `:80` / `:443` binding model and Docker socket access. |
+| `watchtower` | image default | `root` | Left root because it manages Docker through the host Docker socket. |
 
 ## Current `/storage` Ownership and Modes
 
@@ -133,6 +134,7 @@ These services are currently still root-run by design or by conservative choice:
 | `ollama` | Current state path is mounted at `/root/.ollama`, matching the present official container usage. |
 | `traefik` | Current deployment binds privileged ports `80` and `443` and reads the Docker socket. |
 | `nextcloud` | Upstream Apache image uses a root master process with `www-data` workers. |
+| `watchtower` | Reads the Docker socket to update explicitly labeled containers. |
 
 ## Quick Verification Commands
 
@@ -142,7 +144,7 @@ Runtime users:
 docker inspect -f '{{.Name}} user={{json .Config.User}}' \
   audiobookshelf authelia lldap grafana prometheus nextcloud nextcloud-db \
   jenkins gluetun qbittorrent prowlarr sonarr radarr jellyseerr jellyfin \
-  ollama traefik
+  ollama traefik watchtower
 ```
 
 Effective process users:

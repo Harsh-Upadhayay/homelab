@@ -42,6 +42,7 @@ services:
       - traefik.http.services.authelia-openvscode-server.loadbalancer.server.port=9091
       - traefik.http.services.authelia-openclaw.loadbalancer.server.port=9091
       - traefik.http.services.authelia-jenkins.loadbalancer.server.port=9091
+      - traefik.http.services.authelia-jobhunt.loadbalancer.server.port=9091
 
       # ---------- AUTH_HOST (serve whole host) ----------
       - traefik.http.routers.authelia-host.rule=Host(`${AUTH_HOST}`) && PathPrefix(`/`)
@@ -108,6 +109,13 @@ services:
       - traefik.http.routers.authelia-immich.middlewares=authelia-add-slash,secure-headers@docker
       - traefik.http.routers.authelia-immich.service=authelia-immich
       - traefik.http.services.authelia-immich.loadbalancer.server.port=9091
+
+      # ---------- JOBHUNT_HOST under /authelia ----------
+      - traefik.http.routers.authelia-jobhunt.rule=Host(`${JOBHUNT_HOST}`) && PathPrefix(`/authelia`)
+      - traefik.http.routers.authelia-jobhunt.entrypoints=websecure
+      - traefik.http.routers.authelia-jobhunt.tls.certresolver=cloudflare
+      - traefik.http.routers.authelia-jobhunt.middlewares=authelia-add-slash,secure-headers@docker,errpages@docker
+      - traefik.http.routers.authelia-jobhunt.service=authelia-jobhunt
 
   lldap:
     image: ${LLDAP_IMAGE}:${LLDAP_TAG}

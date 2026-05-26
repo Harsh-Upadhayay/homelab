@@ -60,6 +60,11 @@ session:
       default_redirection_url: "https://{{ mustEnv `IMMICH_HOST` }}/"
       name: "immich_sess"
       same_site: "lax"
+    - domain: "{{ mustEnv `JOBHUNT_HOST` }}"
+      authelia_url: "https://{{ mustEnv `JOBHUNT_HOST` }}/authelia"
+      default_redirection_url: "https://{{ mustEnv `JOBHUNT_HOST` }}/"
+      name: "jobhunt_sess"
+      same_site: "lax"
       # SSO
     - domain: "{{ mustEnv `HOMELAB_DOMAIN` }}"
       authelia_url: "https://{{ mustEnv `AUTH_HOST` }}/authelia"
@@ -138,6 +143,10 @@ access_control:
     - domain: {{mustEnv "AUDIOBOOKSHELF_HOST"}}
       policy: two_factor
       subject: ["group:abs-user", "group:admin"]
+
+    - domain: "{{ mustEnv `JOBHUNT_HOST` }}"
+      policy: two_factor
+      subject: ["group:jobhunt-user", "group:admin"]
 
 identity_providers:
   oidc:
