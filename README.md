@@ -25,7 +25,7 @@ make logs-all         # recent logs (non-follow)
 ```
 
 ## per-app
-Use any of: `traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama watchtower jobhunt openvscode-server jenkins homepage cloudflared openclaw`
+Use any of: `traefik authelia monitoring immich mediaserver nextcloud audiobookshelf ollama watchtower jobhunt openvscode-server jenkins homepage cloudflared openclaw kiroku`
 
 ```bash
 make up-traefik

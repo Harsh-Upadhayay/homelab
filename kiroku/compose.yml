@@ -1,0 +1,71 @@
+services:
+  kiroku-api:
+    image: ${KIROKU_API_IMAGE}:${KIROKU_TAG}
+    container_name: kiroku-api
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      PORT: 8080
+      DATA_DIR: /app/data
+    volumes:
+      - ${KIROKU_DATA_LOCATION}:/app/data
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/app/kiroku-api", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.kiroku-api.rule=(Host(`${KIROKU_HOST}`) || Host(`${KIROKU_LEGACY_HOST}`)) && PathPrefix(`/api`)
+      - traefik.http.routers.kiroku-api.entrypoints=websecure
+      - traefik.http.routers.kiroku-api.tls.certresolver=cloudflare
+      - traefik.http.routers.kiroku-api.middlewares=secure-headers@docker,errpages@docker
+      - traefik.http.routers.kiroku-api.priority=100
+      - traefik.http.services.kiroku-api.loadbalancer.server.port=8080
+
+  kiroku:
+    image: ${KIROKU_IMAGE}:${KIROKU_TAG}
+    container_name: kiroku
+    restart: unless-stopped
+    env_file:
+      - ../ops/.env.local
+      - ./app.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: https://${KIROKU_HOST}
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.kiroku.rule=Host(`${KIROKU_HOST}`) || Host(`${KIROKU_LEGACY_HOST}`)
+      - traefik.http.routers.kiroku.entrypoints=websecure
+      - traefik.http.routers.kiroku.tls.certresolver=cloudflare
+      - traefik.http.routers.kiroku.middlewares=secure-headers@docker,errpages@docker
+      - traefik.http.services.kiroku.loadbalancer.server.port=3000
+    depends_on:
+      kiroku-api:
+        condition: service_healthy
+
+networks:
+  traefik:
+    external: true
