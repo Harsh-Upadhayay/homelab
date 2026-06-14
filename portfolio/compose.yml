@@ -1,0 +1,28 @@
+services:
+  portfolio:
+    build:
+      context: ../../portfolio
+      dockerfile: Dockerfile
+    container_name: portfolio
+    restart: unless-stopped
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.portfolio.rule=Host(`${PORTFOLIO_HOST}`)
+      - traefik.http.routers.portfolio.entrypoints=websecure
+      - traefik.http.routers.portfolio.tls.certresolver=cloudflare
+      - traefik.http.routers.portfolio.middlewares=secure-headers@docker
+      - traefik.http.services.portfolio.loadbalancer.server.port=80
+
+networks:
+  traefik:
+    external: true
