@@ -54,17 +54,20 @@ services:
     networks:
       - default
       - traefik
+    security_opt:
+      - no-new-privileges:true
     labels:
       - com.centurylinklabs.watchtower.enable=true
       - traefik.enable=true
       - traefik.docker.network=traefik
-      - traefik.http.routers.jobhunt.rule=Host(`${JOBHUNT_HOST}`)
+      - traefik.http.routers.jobhunt.rule=Host(`${JOBHUNT_HOST}`) && (PathPrefix(`/api`) || PathPrefix(`/admin`))
+      - traefik.http.routers.jobhunt.priority=100
       - traefik.http.routers.jobhunt.entrypoints=websecure
       - traefik.http.routers.jobhunt.tls.certresolver=cloudflare
       - traefik.http.routers.jobhunt.middlewares=authelia-fa-jobhunt,secure-headers@docker,errpages@docker
       - traefik.http.services.jobhunt.loadbalancer.server.port=8000
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/jobs/stats/')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/jobs/stats/')"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -99,6 +102,8 @@ services:
       --loglevel=info
       --pool=threads
       --concurrency=20
+    security_opt:
+      - no-new-privileges:true
     labels:
       - com.centurylinklabs.watchtower.enable=true
     depends_on:
@@ -129,6 +134,8 @@ services:
       DISCORD_TOP_N_JOBS: ${JOBHUNT_DISCORD_TOP_N_JOBS}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+    security_opt:
+      - no-new-privileges:true
     labels:
       - com.centurylinklabs.watchtower.enable=true
     depends_on:
@@ -145,21 +152,22 @@ services:
       HOSTNAME: 0.0.0.0
       BACKEND_INTERNAL_URL: http://django:8000
       INTERNAL_API_TOKEN: ${JOBHUNT_INTERNAL_API_TOKEN}
-      NEXT_PUBLIC_BASE_PATH: /v2
     networks:
       - default
       - traefik
+    security_opt:
+      - no-new-privileges:true
     labels:
       - com.centurylinklabs.watchtower.enable=true
       - traefik.enable=true
       - traefik.docker.network=traefik
-      - traefik.http.routers.jobhunt-frontend.rule=Host(`${JOBHUNT_HOST}`) && PathPrefix(`/v2`)
+      - traefik.http.routers.jobhunt-frontend.rule=Host(`${JOBHUNT_HOST}`)
       - traefik.http.routers.jobhunt-frontend.entrypoints=websecure
       - traefik.http.routers.jobhunt-frontend.tls.certresolver=cloudflare
       - traefik.http.routers.jobhunt-frontend.middlewares=authelia-fa-jobhunt,secure-headers@docker,errpages@docker
       - traefik.http.services.jobhunt-frontend.loadbalancer.server.port=3000
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/v2/api/proxy/jobs/stats/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/bff/jobs/stats/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -171,3 +179,5 @@ services:
 networks:
   traefik:
     external: true
+  default:
+    name: jobhunt_internal
