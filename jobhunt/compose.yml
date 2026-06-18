@@ -44,7 +44,10 @@ services:
       DJANGO_CSRF_TRUSTED_ORIGINS: https://${JOBHUNT_HOST}
       APIFY_API_TOKEN: ${JOBHUNT_APIFY_API_TOKEN}
       OPENAI_API_KEY: ${JOBHUNT_OPENAI_API_KEY}
-      DISCORD_WEBHOOK_URL: ${JOBHUNT_DISCORD_WEBHOOK_URL}
+      DISCORD_WEBHOOK_URL_DEFAULT: ${DISCORD_WEBHOOK_URL_DEFAULT}
+      DISCORD_WEBHOOK_URL_JAPAN: ${DISCORD_WEBHOOK_URL_JAPAN}
+      DISCORD_WEBHOOK_URL_REMOTE: ${DISCORD_WEBHOOK_URL_REMOTE}
+      DISCORD_WEBHOOK_URL_INDIA: ${DISCORD_WEBHOOK_URL_INDIA}
       DISCORD_TOP_N_JOBS: ${JOBHUNT_DISCORD_TOP_N_JOBS}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -84,7 +87,10 @@ services:
       DJANGO_CSRF_TRUSTED_ORIGINS: https://${JOBHUNT_HOST}
       APIFY_API_TOKEN: ${JOBHUNT_APIFY_API_TOKEN}
       OPENAI_API_KEY: ${JOBHUNT_OPENAI_API_KEY}
-      DISCORD_WEBHOOK_URL: ${JOBHUNT_DISCORD_WEBHOOK_URL}
+      DISCORD_WEBHOOK_URL_DEFAULT: ${DISCORD_WEBHOOK_URL_DEFAULT}
+      DISCORD_WEBHOOK_URL_JAPAN: ${DISCORD_WEBHOOK_URL_JAPAN}
+      DISCORD_WEBHOOK_URL_REMOTE: ${DISCORD_WEBHOOK_URL_REMOTE}
+      DISCORD_WEBHOOK_URL_INDIA: ${DISCORD_WEBHOOK_URL_INDIA}
       DISCORD_TOP_N_JOBS: ${JOBHUNT_DISCORD_TOP_N_JOBS}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -116,7 +122,10 @@ services:
       DJANGO_CSRF_TRUSTED_ORIGINS: https://${JOBHUNT_HOST}
       APIFY_API_TOKEN: ${JOBHUNT_APIFY_API_TOKEN}
       OPENAI_API_KEY: ${JOBHUNT_OPENAI_API_KEY}
-      DISCORD_WEBHOOK_URL: ${JOBHUNT_DISCORD_WEBHOOK_URL}
+      DISCORD_WEBHOOK_URL_DEFAULT: ${DISCORD_WEBHOOK_URL_DEFAULT}
+      DISCORD_WEBHOOK_URL_JAPAN: ${DISCORD_WEBHOOK_URL_JAPAN}
+      DISCORD_WEBHOOK_URL_REMOTE: ${DISCORD_WEBHOOK_URL_REMOTE}
+      DISCORD_WEBHOOK_URL_INDIA: ${DISCORD_WEBHOOK_URL_INDIA}
       DISCORD_TOP_N_JOBS: ${JOBHUNT_DISCORD_TOP_N_JOBS}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -125,6 +134,37 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      django:
+        condition: service_healthy
+
+  frontend:
+    image: ${JOBHUNT_FRONTEND_IMAGE}:${JOBHUNT_FRONTEND_TAG:-main}
+    container_name: jobhunt-frontend
+    restart: unless-stopped
+    environment:
+      HOSTNAME: 0.0.0.0
+      BACKEND_INTERNAL_URL: http://django:8000
+      INTERNAL_API_TOKEN: ${JOBHUNT_INTERNAL_API_TOKEN}
+      NEXT_PUBLIC_BASE_PATH: /v2
+    networks:
+      - default
+      - traefik
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.jobhunt-frontend.rule=Host(`${JOBHUNT_HOST}`) && PathPrefix(`/v2`)
+      - traefik.http.routers.jobhunt-frontend.entrypoints=websecure
+      - traefik.http.routers.jobhunt-frontend.tls.certresolver=cloudflare
+      - traefik.http.routers.jobhunt-frontend.middlewares=authelia-fa-jobhunt,secure-headers@docker,errpages@docker
+      - traefik.http.services.jobhunt-frontend.loadbalancer.server.port=3000
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/v2/api/proxy/jobs/stats/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
       django:
         condition: service_healthy
 
