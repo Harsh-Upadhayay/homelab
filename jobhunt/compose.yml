@@ -53,19 +53,10 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     networks:
       - default
-      - traefik
     security_opt:
       - no-new-privileges:true
     labels:
       - com.centurylinklabs.watchtower.enable=true
-      - traefik.enable=true
-      - traefik.docker.network=traefik
-      - traefik.http.routers.jobhunt.rule=Host(`${JOBHUNT_HOST}`) && (PathPrefix(`/api`) || PathPrefix(`/admin`))
-      - traefik.http.routers.jobhunt.priority=100
-      - traefik.http.routers.jobhunt.entrypoints=websecure
-      - traefik.http.routers.jobhunt.tls.certresolver=cloudflare
-      - traefik.http.routers.jobhunt.middlewares=authelia-fa-jobhunt,secure-headers@docker,errpages@docker
-      - traefik.http.services.jobhunt.loadbalancer.server.port=8000
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/jobs/stats/')"]
       interval: 15s
@@ -154,18 +145,10 @@ services:
       INTERNAL_API_TOKEN: ${JOBHUNT_INTERNAL_API_TOKEN}
     networks:
       - default
-      - traefik
     security_opt:
       - no-new-privileges:true
     labels:
       - com.centurylinklabs.watchtower.enable=true
-      - traefik.enable=true
-      - traefik.docker.network=traefik
-      - traefik.http.routers.jobhunt-frontend.rule=Host(`${JOBHUNT_HOST}`)
-      - traefik.http.routers.jobhunt-frontend.entrypoints=websecure
-      - traefik.http.routers.jobhunt-frontend.tls.certresolver=cloudflare
-      - traefik.http.routers.jobhunt-frontend.middlewares=authelia-fa-jobhunt,secure-headers@docker,errpages@docker
-      - traefik.http.services.jobhunt-frontend.loadbalancer.server.port=3000
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/bff/jobs/stats/"]
       interval: 30s
@@ -174,6 +157,41 @@ services:
       start_period: 30s
     depends_on:
       django:
+        condition: service_healthy
+
+  # Single public entrypoint: routes /api,/admin,/static -> django and
+  # everything else (Next.js app incl. /bff/*) -> frontend. Only this service
+  # is exposed to Traefik, so there is no path-split across two routers.
+  nginx:
+    image: nginx:alpine
+    container_name: jobhunt-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - default
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.jobhunt.rule=Host(`${JOBHUNT_HOST}`)
+      - traefik.http.routers.jobhunt.entrypoints=websecure
+      - traefik.http.routers.jobhunt.tls.certresolver=cloudflare
+      - traefik.http.routers.jobhunt.middlewares=secure-headers@docker
+      - traefik.http.services.jobhunt.loadbalancer.server.port=80
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      django:
+        condition: service_healthy
+      frontend:
         condition: service_healthy
 
 networks:
